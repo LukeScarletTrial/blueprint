@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "compiler",
+    "runtime",
+    "printable"
+]
+
+[profile.release]
+opt-level = 3

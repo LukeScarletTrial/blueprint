@@ -1,2 +1,2 @@
-# blueprint
-The official repo of Blueprint Language.
+# bl
+Blueprint Language

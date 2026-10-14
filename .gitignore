@@ -1,0 +1,5 @@
+# Ignore target and editor files
+/target
+**/*.rs.bk
+**/*.swp
+/.vscode
