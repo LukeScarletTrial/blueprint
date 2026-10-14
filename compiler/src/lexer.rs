@@ -181,7 +181,9 @@ pub fn byte_to_location(source: &str, byte_offset: usize) -> SourceLocation {
 }
 
 pub fn tokenize(source: &str) -> Result<Vec<SpannedToken>, LexError> {
-    let mut lexer = Token::lexer(source);
+    // Strip UTF-8 BOM if present (written by Windows PowerShell Out-File or Notepad)
+    let clean_source = source.strip_prefix('\u{FEFF}').unwrap_or(source);
+    let mut lexer = Token::lexer(clean_source);
     let mut tokens = Vec::new();
 
     while let Some(token_res) = lexer.next() {

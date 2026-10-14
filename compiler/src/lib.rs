@@ -16,6 +16,7 @@ pub use crate::semantics::{analyze, SemanticAnalyzer, SemanticError};
 
 /// Compile pipeline: tokenizes, parses, and semantically analyzes the source.
 pub fn compile(source: &str) -> Result<Program, CompileError> {
+    let source = source.strip_prefix('\u{FEFF}').unwrap_or(source);
     let tokens = tokenize(source)?;
     let program = parse_program(source, tokens)?;
     analyze(source, &program)?;
@@ -24,6 +25,7 @@ pub fn compile(source: &str) -> Result<Program, CompileError> {
 
 /// Run pipeline: compiles the source and executes Main(). Returns captured runtime output.
 pub fn run(source: &str) -> Result<(Value, Vec<String>), CompileError> {
+    let source = source.strip_prefix('\u{FEFF}').unwrap_or(source);
     let program = compile(source)?;
     let mut interpreter = Interpreter::new();
     interpreter.load_program(source, &program)?;
@@ -36,6 +38,8 @@ pub fn build_executable(
     source: &str,
     output_path: &std::path::Path,
 ) -> Result<std::path::PathBuf, CompileError> {
+    let source = source.strip_prefix('\u{FEFF}').unwrap_or(source);
     let program = compile(source)?;
     CodeGen::compile_to_executable(&program, source, output_path)
 }
+
