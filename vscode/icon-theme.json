@@ -1,0 +1,17 @@
+{
+  "iconDefinitions": {
+    "_blueprint_file": {
+      "iconPath": "./logo.png"
+    },
+    "_blueprint_setup": {
+      "iconPath": "./deps_logo.png"
+    }
+  },
+  "fileExtensions": {
+    "bl": "_blueprint_file",
+    "bls": "_blueprint_setup"
+  },
+  "fileNames": {
+    "app.bls": "_blueprint_setup"
+  }
+}

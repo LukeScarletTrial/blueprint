@@ -1,0 +1,12 @@
+{
+  "name": "Blueprint App",
+  "version": "1.0.0",
+  "author": "Yasser",
+  "compiler": {
+    "target": "native",
+    "optimizer": "optimized"
+  },
+  "dependencies": {
+    "core": "v1.2.0"
+  }
+}

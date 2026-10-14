@@ -1,0 +1,62 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Blueprint Setup",
+  "scopeName": "source.bls",
+  "patterns": [
+    {
+      "name": "comment.line.double-slash.bls",
+      "match": "//.*$"
+    },
+    {
+      "name": "string.quoted.double.bls",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.bls",
+          "match": "\\\\."
+        }
+      ]
+    },
+    {
+      "name": "constant.numeric.bls",
+      "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+    },
+    {
+      "name": "constant.language.boolean.bls",
+      "match": "\\b(true|false)\\b"
+    },
+    {
+      "name": "constant.language.null.bls",
+      "match": "\\bnull\\b"
+    },
+    {
+      "name": "support.type.property-name.bls",
+      "match": "\"[^\"]+\"(?=\\s*:)"
+    },
+    {
+      "name": "punctuation.separator.dictionary.key-value.bls",
+      "match": ":"
+    },
+    {
+      "name": "punctuation.separator.array.bls",
+      "match": ","
+    },
+    {
+      "name": "punctuation.definition.dictionary.begin.bls",
+      "match": "\\{"
+    },
+    {
+      "name": "punctuation.definition.dictionary.end.bls",
+      "match": "\\}"
+    },
+    {
+      "name": "punctuation.definition.array.begin.bls",
+      "match": "\\["
+    },
+    {
+      "name": "punctuation.definition.array.end.bls",
+      "match": "\\]"
+    }
+  ]
+}
