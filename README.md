@@ -10,8 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/LukeScarletTrial/bl/actions"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/LukeScarletTrial/bl/ci.yml?style=flat-square&label=build" /></a>
-  <a href="https://github.com/LukeScarletTrial/bl/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/LukeScarletTrial/bl?style=flat-square" /></a>
+  <a href="https://github.com/LukeScarletTrial/blueprint/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/LukeScarletTrial/blueprint?style=flat-square" /></a>
   <a href="https://github.com/LukeScarletTrial/printable/releases"><img alt="Download" src="https://img.shields.io/badge/download-printable%20CLI-blue?style=flat-square" /></a>
 </p>
 
