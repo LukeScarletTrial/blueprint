@@ -19,9 +19,9 @@
 
 ## What is Blueprint?
 
-**Blueprint** (`.bl`) is a statically-typed programming language with a clean, minimal syntax. It uses square brackets `[ ]` as code block delimiters — making structure visually obvious at a glance.
+**Blueprint** (`.bl`) is a statically-typed programming language with a clean, minimal syntax. It uses square brackets `[ ]` as code block delimiters, making structure visually obvious at a glance.
 
-Blueprint compiles to **native executables** via the `printable` CLI tool. No VM, no interpreter in production — just a fast binary.
+Blueprint compiles to **native executables** via the `printable` CLI tool. No VM, no interpreter in production, just a fast binary.
 
 ---
 
@@ -66,7 +66,7 @@ User is a minor.
 
 ### 1. Download the CLI
 
-Grab the pre-compiled [`printable`](https://github.com/LukeScarletTrial/printable) build tool — no Rust required:
+Grab the pre-compiled [`printable`](https://github.com/LukeScarletTrial/printable) build tool, no Rust required:
 
 | Platform | Download |
 |----------|----------|
