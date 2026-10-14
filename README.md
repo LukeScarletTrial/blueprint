@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/LukeScarletTrial/blueprint/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/LukeScarletTrial/blueprint?style=flat-square" /></a>
   <a href="https://github.com/LukeScarletTrial/blueprint/raw/main/vscode/blueprint-lang-0.1.0.vsix"><img alt="VS Code Extension" src="https://img.shields.io/badge/download-VS%20Code%20Extension-purple?style=flat-square&logo=visualstudiocode" /></a>
-  <a href="https://github.com/LukeScarletTrial/printable/releases"><img alt="Download" src="https://img.shields.io/badge/download-printable%20CLI-blue?style=flat-square" /></a>
+  <a href="https://github.com/LukeScarletTrial/printable"><img alt="Download" src="https://img.shields.io/badge/download-printable%20CLI-blue?style=flat-square" /></a>
 </p>
 
 ---
