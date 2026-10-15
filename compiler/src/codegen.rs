@@ -107,6 +107,22 @@ impl CodeGen {
         }
     }
 
+    fn infer_c_type(expr: &Expr) -> String {
+        match expr {
+            Expr::Int(_) => "int64_t".to_string(),
+            Expr::Bool(_) => "bool".to_string(),
+            Expr::String(_) => "const char*".to_string(),
+            Expr::StructInit(name, _) => name.clone(),
+            Expr::BinaryOp(_, BinOp::Add, _) => "const char*".to_string(),
+            Expr::BinaryOp(_, BinOp::Gt | BinOp::Lt | BinOp::Gte | BinOp::Lte | BinOp::EqEq | BinOp::Neq | BinOp::And | BinOp::Or, _) => "bool".to_string(),
+            Expr::BinaryOp(_, _, _) => "int64_t".to_string(),
+            Expr::UnaryOp(UnOp::Not, _) => "bool".to_string(),
+            Expr::UnaryOp(UnOp::Neg, _) => "int64_t".to_string(),
+            Expr::Call(_, _) => "const char*".to_string(),
+            _ => "const char*".to_string(),
+        }
+    }
+
     fn c_params(params: &[Param]) -> String {
         if params.is_empty() {
             return "void".to_string();
@@ -129,8 +145,7 @@ impl CodeGen {
                 let ty_str = if let Some(ref ty) = v.explicit_ty {
                     Self::c_type(ty)
                 } else {
-                    // infer basic type or fallback to auto/pointer
-                    "auto".to_string()
+                    Self::infer_c_type(&v.expr.expr)
                 };
                 out.push_str(&format!("{}{} {} = {};\n", ind, ty_str, v.name, expr_code));
             }

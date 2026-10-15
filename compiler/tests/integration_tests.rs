@@ -101,3 +101,33 @@ func Main(): [
     let err_str = res.unwrap_err().to_string();
     assert!(err_str.contains("Call to undefined function 'UnknownFunc'"));
 }
+
+#[test]
+fn test_native_gcc_standalone_build() {
+    use blueprint_compiler::build_executable;
+    use std::process::Command;
+
+    let src = r#"
+@blueprint import Blueprint
+Blueprint.Setup("Standalone Native", true)
+
+func Greet(name: str): str [
+    return "Hello, " + name + "!"
+]
+
+func Main(): [
+    def msg = Greet("Native GCC")
+    output(msg)
+]
+"#;
+    let out_exe = std::env::temp_dir().join(format!("bl_gcc_test_{}.exe", std::process::id()));
+    let res = build_executable(src, &out_exe);
+    assert!(res.is_ok(), "GCC compilation failed: {:?}", res.err());
+
+    let run_res = Command::new(&out_exe).output().expect("Failed to execute native binary");
+    let stdout = String::from_utf8_lossy(&run_res.stdout);
+    assert!(stdout.contains("Hello, Native GCC!"));
+
+    let _ = std::fs::remove_file(out_exe);
+}
+
