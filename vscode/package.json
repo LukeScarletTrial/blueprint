@@ -5,6 +5,10 @@
   "version": "0.1.0",
   "icon": "logo.png",
   "publisher": "LukeScarletTrial",
+  "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:blueprint"
+  ],
   "engines": {
     "vscode": "^1.70.0"
   },
@@ -42,8 +46,8 @@
           "app.bls"
         ],
         "icon": {
-          "light": "./logo.png",
-          "dark": "./logo.png"
+          "light": "./deps_logo.png",
+          "dark": "./deps_logo.png"
         },
         "configuration": "./language-configuration.json"
       }
@@ -64,6 +68,13 @@
       {
         "language": "blueprint",
         "path": "./snippets.json"
+      }
+    ],
+    "iconThemes": [
+      {
+        "id": "blueprint-icons",
+        "label": "Blueprint Icons",
+        "path": "./icon-theme.json"
       }
     ]
   }
