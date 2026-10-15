@@ -80,29 +80,25 @@ Place `printable.exe` anywhere in your `PATH`.
 printable init
 ```
 
-This creates an `app.bls` (Blueprint Setup) configuration file.
-
-### 3. Write your code
-
-Create `main.bl`:
+This creates your `config.bls` project configuration and a starter `main.bl` Hello World file:
 
 ```blueprint
 @blueprint import Blueprint
 Blueprint.Setup("Hello World", true)
 
 func Main(): [
-    output("Hello, Blueprint!")
+    output("Hello, World!")
 ]
 ```
 
-### 4. Run or Build
+### 3. Run or Build
 
 ```bash
 # Run directly
-printable run main.bl
+printable run
 
-# Compile to a native .exe
-printable build main.bl
+# Compile to a native standalone .exe
+printable build
 # → bin/main.exe
 ```
 
