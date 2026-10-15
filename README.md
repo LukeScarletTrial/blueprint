@@ -21,7 +21,7 @@
 
 **Blueprint** (`.bl`) is a statically-typed programming language with a clean, minimal syntax. It uses square brackets `[ ]` as code block delimiters, making structure visually obvious at a glance.
 
-Blueprint compiles to **native executables** via the `printable` CLI tool. No VM, no interpreter in production, just a fast binary.
+Blueprint builds into **standalone native executables** via the `printable` CLI tool. A full direct native backend (LLVM & ARC memory runtime) is actively in development on the roadmap.
 
 ---
 
@@ -150,17 +150,23 @@ if score >= 90 [
 
 ### Project Config (`app.bls`)
 
-Every Blueprint project has an `app.bls` setup file:
+Every Blueprint project has an `app.bls` setup file created via `printable init`:
 
+```json
+{
+  "name": "My App",
+  "version": "1.0.0",
+  "author": "Developer",
+  "compiler": {
+    "target": "native",
+    "optimizer": "optimized"
+  },
+  "dependencies": {
+    "core": "1.2.0"
+  }
+}
 ```
-[setup]
-name = "My App"
-version = "1.0.0"
-author = "You"
 
-[deps]
-# future: declare library dependencies here
-```
 
 ---
 
