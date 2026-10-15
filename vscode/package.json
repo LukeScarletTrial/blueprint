@@ -69,13 +69,6 @@
         "language": "blueprint",
         "path": "./snippets.json"
       }
-    ],
-    "iconThemes": [
-      {
-        "id": "blueprint-icons",
-        "label": "Blueprint Icons",
-        "path": "./icon-theme.json"
-      }
     ]
   }
 }
