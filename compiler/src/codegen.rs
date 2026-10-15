@@ -17,31 +17,267 @@ impl CodeGen {
         out.push_str("#include <stdlib.h>\n");
         out.push_str("#include <string.h>\n");
         out.push_str("#include <stdbool.h>\n");
-        out.push_str("#include <stdint.h>\n\n");
+        out.push_str("#include <stdint.h>\n");
+        out.push_str("#include <math.h>\n\n");
 
-        // Runtime helpers: string concatenation and output
+        out.push_str("#ifdef _WIN32\n");
+        out.push_str("#define WIN32_LEAN_AND_MEAN\n");
+        out.push_str("#include <windows.h>\n");
+        out.push_str("#endif\n\n");
+
+        // ARC (Automatic Reference Counting) Memory Model
+        out.push_str("/* ========================================================================= */\n");
+        out.push_str("/* ARC (Automatic Reference Counting) Memory Model                           */\n");
+        out.push_str("/* ========================================================================= */\n\n");
+        out.push_str("typedef struct {\n");
+        out.push_str("    int32_t ref_count;\n");
+        out.push_str("    size_t size;\n");
+        out.push_str("} bl_arc_header_t;\n\n");
+
+        out.push_str("static void* bl_arc_alloc(size_t payload_size) {\n");
+        out.push_str("    bl_arc_header_t* header = (bl_arc_header_t*)malloc(sizeof(bl_arc_header_t) + payload_size);\n");
+        out.push_str("    if (!header) { fprintf(stderr, \"Fatal: Out of memory\\n\"); exit(1); }\n");
+        out.push_str("    header->ref_count = 1;\n");
+        out.push_str("    header->size = payload_size;\n");
+        out.push_str("    return (void*)(header + 1);\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static void* bl_arc_retain(void* ptr) {\n");
+        out.push_str("    if (!ptr) return NULL;\n");
+        out.push_str("    bl_arc_header_t* header = ((bl_arc_header_t*)ptr) - 1;\n");
+        out.push_str("    if (header->ref_count > 0) { header->ref_count++; }\n");
+        out.push_str("    return ptr;\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static void bl_arc_release(void* ptr) {\n");
+        out.push_str("    if (!ptr) return;\n");
+        out.push_str("    bl_arc_header_t* header = ((bl_arc_header_t*)ptr) - 1;\n");
+        out.push_str("    if (header->ref_count > 0) {\n");
+        out.push_str("        header->ref_count--;\n");
+        out.push_str("        if (header->ref_count == 0) {\n");
+        out.push_str("            free(header);\n");
+        out.push_str("        }\n");
+        out.push_str("    }\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static char* bl_arc_str(const char* s) {\n");
+        out.push_str("    if (!s) return NULL;\n");
+        out.push_str("    size_t len = strlen(s);\n");
+        out.push_str("    char* copy = (char*)bl_arc_alloc(len + 1);\n");
+        out.push_str("    memcpy(copy, s, len + 1);\n");
+        out.push_str("    return copy;\n");
+        out.push_str("}\n\n");
+
         out.push_str("static char* bl_concat(const char* s1, const char* s2) {\n");
+        out.push_str("    if (!s1) s1 = \"\";\n");
+        out.push_str("    if (!s2) s2 = \"\";\n");
         out.push_str("    size_t len1 = strlen(s1);\n");
         out.push_str("    size_t len2 = strlen(s2);\n");
-        out.push_str("    char* res = (char*)malloc(len1 + len2 + 1);\n");
+        out.push_str("    char* res = (char*)bl_arc_alloc(len1 + len2 + 1);\n");
         out.push_str("    memcpy(res, s1, len1);\n");
         out.push_str("    memcpy(res + len1, s2, len2 + 1);\n");
         out.push_str("    return res;\n");
         out.push_str("}\n\n");
 
         out.push_str("static char* bl_int_to_str(int64_t val) {\n");
-        out.push_str("    char* buf = (char*)malloc(32);\n");
-        out.push_str("    snprintf(buf, 32, \"%lld\", (long long)val);\n");
-        out.push_str("    return buf;\n");
+        out.push_str("    char buf[64];\n");
+        out.push_str("    snprintf(buf, sizeof(buf), \"%lld\", (long long)val);\n");
+        out.push_str("    return bl_arc_str(buf);\n");
         out.push_str("}\n\n");
 
+        // Standard library runtime helpers: IO and Math
+        out.push_str("/* ========================================================================= */\n");
+        out.push_str("/* Standard Library Functions                                               */\n");
+        out.push_str("/* ========================================================================= */\n\n");
         out.push_str("static void bl_output_str(const char* s) {\n");
-        out.push_str("    printf(\"%s\\n\", s);\n");
+        out.push_str("    printf(\"%s\\n\", s ? s : \"\");\n");
         out.push_str("}\n\n");
 
         out.push_str("static void bl_output_int(int64_t n) {\n");
         out.push_str("    printf(\"%lld\\n\", (long long)n);\n");
         out.push_str("}\n\n");
+
+        out.push_str("static char* bl_input(const char* prompt) {\n");
+        out.push_str("    if (prompt && *prompt) {\n");
+        out.push_str("        printf(\"%s\", prompt);\n");
+        out.push_str("        fflush(stdout);\n");
+        out.push_str("    }\n");
+        out.push_str("    char buf[1024];\n");
+        out.push_str("    if (fgets(buf, sizeof(buf), stdin)) {\n");
+        out.push_str("        size_t len = strlen(buf);\n");
+        out.push_str("        while (len > 0 && (buf[len - 1] == '\\n' || buf[len - 1] == '\\r')) {\n");
+        out.push_str("            buf[len - 1] = '\\0';\n");
+        out.push_str("            len--;\n");
+        out.push_str("        }\n");
+        out.push_str("        return bl_arc_str(buf);\n");
+        out.push_str("    }\n");
+        out.push_str("    return bl_arc_str(\"\");\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static int64_t bl_str_len(const char* s) {\n");
+        out.push_str("    return s ? (int64_t)strlen(s) : 0;\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static int64_t bl_math_abs(int64_t n) {\n");
+        out.push_str("    return n < 0 ? -n : n;\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static int64_t bl_math_pow(int64_t base, int64_t exp) {\n");
+        out.push_str("    if (exp <= 0) return 1;\n");
+        out.push_str("    int64_t res = 1;\n");
+        out.push_str("    for (int64_t i = 0; i < exp; ++i) { res *= base; }\n");
+        out.push_str("    return res;\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static int64_t bl_math_min(int64_t a, int64_t b) {\n");
+        out.push_str("    return a < b ? a : b;\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static int64_t bl_math_max(int64_t a, int64_t b) {\n");
+        out.push_str("    return a > b ? a : b;\n");
+        out.push_str("}\n\n");
+
+        // 2D Graphics Library Runtime
+        out.push_str("/* ========================================================================= */\n");
+        out.push_str("/* 2D Graphics Library Runtime (Win32 Double Buffered / Platform Fallback)  */\n");
+        out.push_str("/* ========================================================================= */\n\n");
+        out.push_str("#ifdef _WIN32\n");
+        out.push_str("static HWND bl_hwnd = NULL;\n");
+        out.push_str("static HDC bl_hdc = NULL;\n");
+        out.push_str("static HDC bl_memdc = NULL;\n");
+        out.push_str("static HBITMAP bl_bitmap = NULL;\n");
+        out.push_str("static int bl_win_width = 800;\n");
+        out.push_str("static int bl_win_height = 600;\n");
+        out.push_str("static bool bl_should_close = false;\n\n");
+
+        out.push_str("static LRESULT CALLBACK bl_wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {\n");
+        out.push_str("    if (msg == WM_CLOSE || msg == WM_DESTROY) {\n");
+        out.push_str("        bl_should_close = true;\n");
+        out.push_str("        return 0;\n");
+        out.push_str("    }\n");
+        out.push_str("    return DefWindowProcA(hwnd, msg, wParam, lParam);\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static bool window_open(const char* title, int64_t w, int64_t h) {\n");
+        out.push_str("    bl_win_width = (int)w;\n");
+        out.push_str("    bl_win_height = (int)h;\n");
+        out.push_str("    bl_should_close = false;\n");
+        out.push_str("    HINSTANCE hInst = GetModuleHandleA(NULL);\n");
+        out.push_str("    WNDCLASSEXA wc = {0};\n");
+        out.push_str("    wc.cbSize = sizeof(WNDCLASSEXA);\n");
+        out.push_str("    wc.style = CS_HREDRAW | CS_VREDRAW;\n");
+        out.push_str("    wc.lpfnWndProc = bl_wndproc;\n");
+        out.push_str("    wc.hInstance = hInst;\n");
+        out.push_str("    wc.hCursor = LoadCursor(NULL, IDC_ARROW);\n");
+        out.push_str("    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);\n");
+        out.push_str("    wc.lpszClassName = \"BlueprintWindowClass\";\n");
+        out.push_str("    RegisterClassExA(&wc);\n");
+        out.push_str("    RECT rc = {0, 0, bl_win_width, bl_win_height};\n");
+        out.push_str("    AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);\n");
+        out.push_str("    int total_w = rc.right - rc.left;\n");
+        out.push_str("    int total_h = rc.bottom - rc.top;\n");
+        out.push_str("    bl_hwnd = CreateWindowExA(0, \"BlueprintWindowClass\", title, WS_OVERLAPPEDWINDOW | WS_VISIBLE,\n");
+        out.push_str("        CW_USEDEFAULT, CW_USEDEFAULT, total_w, total_h, NULL, NULL, hInst, NULL);\n");
+        out.push_str("    if (!bl_hwnd) return false;\n");
+        out.push_str("    bl_hdc = GetDC(bl_hwnd);\n");
+        out.push_str("    bl_memdc = CreateCompatibleDC(bl_hdc);\n");
+        out.push_str("    bl_bitmap = CreateCompatibleBitmap(bl_hdc, bl_win_width, bl_win_height);\n");
+        out.push_str("    SelectObject(bl_memdc, bl_bitmap);\n");
+        out.push_str("    ShowWindow(bl_hwnd, SW_SHOW);\n");
+        out.push_str("    UpdateWindow(bl_hwnd);\n");
+        out.push_str("    return true;\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static void window_close(void) {\n");
+        out.push_str("    if (bl_bitmap) { DeleteObject(bl_bitmap); bl_bitmap = NULL; }\n");
+        out.push_str("    if (bl_memdc) { DeleteDC(bl_memdc); bl_memdc = NULL; }\n");
+        out.push_str("    if (bl_hdc && bl_hwnd) { ReleaseDC(bl_hwnd, bl_hdc); bl_hdc = NULL; }\n");
+        out.push_str("    if (bl_hwnd) { DestroyWindow(bl_hwnd); bl_hwnd = NULL; }\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static bool window_should_close(void) { return bl_should_close; }\n\n");
+
+        out.push_str("static void window_poll(void) {\n");
+        out.push_str("    MSG msg;\n");
+        out.push_str("    while (PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE)) {\n");
+        out.push_str("        TranslateMessage(&msg);\n");
+        out.push_str("        DispatchMessageA(&msg);\n");
+        out.push_str("    }\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static void draw_clear(int64_t r, int64_t g, int64_t b) {\n");
+        out.push_str("    if (!bl_memdc) return;\n");
+        out.push_str("    HBRUSH brush = CreateSolidBrush(RGB((int)r, (int)g, (int)b));\n");
+        out.push_str("    RECT rc = {0, 0, bl_win_width, bl_win_height};\n");
+        out.push_str("    FillRect(bl_memdc, &rc, brush);\n");
+        out.push_str("    DeleteObject(brush);\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static void draw_rect(int64_t x, int64_t y, int64_t w, int64_t h, int64_t r, int64_t g, int64_t b) {\n");
+        out.push_str("    if (!bl_memdc) return;\n");
+        out.push_str("    HBRUSH brush = CreateSolidBrush(RGB((int)r, (int)g, (int)b));\n");
+        out.push_str("    RECT rc = {(LONG)x, (LONG)y, (LONG)(x + w), (LONG)(y + h)};\n");
+        out.push_str("    FillRect(bl_memdc, &rc, brush);\n");
+        out.push_str("    DeleteObject(brush);\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static void draw_circle(int64_t cx, int64_t cy, int64_t radius, int64_t r, int64_t g, int64_t b) {\n");
+        out.push_str("    if (!bl_memdc) return;\n");
+        out.push_str("    HBRUSH brush = CreateSolidBrush(RGB((int)r, (int)g, (int)b));\n");
+        out.push_str("    HPEN pen = CreatePen(PS_SOLID, 1, RGB((int)r, (int)g, (int)b));\n");
+        out.push_str("    HGDIOBJ old_brush = SelectObject(bl_memdc, brush);\n");
+        out.push_str("    HGDIOBJ old_pen = SelectObject(bl_memdc, pen);\n");
+        out.push_str("    Ellipse(bl_memdc, (int)(cx - radius), (int)(cy - radius), (int)(cx + radius), (int)(cy + radius));\n");
+        out.push_str("    SelectObject(bl_memdc, old_brush);\n");
+        out.push_str("    SelectObject(bl_memdc, old_pen);\n");
+        out.push_str("    DeleteObject(brush);\n");
+        out.push_str("    DeleteObject(pen);\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static void draw_line(int64_t x1, int64_t y1, int64_t x2, int64_t y2, int64_t r, int64_t g, int64_t b) {\n");
+        out.push_str("    if (!bl_memdc) return;\n");
+        out.push_str("    HPEN pen = CreatePen(PS_SOLID, 1, RGB((int)r, (int)g, (int)b));\n");
+        out.push_str("    HGDIOBJ old_pen = SelectObject(bl_memdc, pen);\n");
+        out.push_str("    MoveToEx(bl_memdc, (int)x1, (int)y1, NULL);\n");
+        out.push_str("    LineTo(bl_memdc, (int)x2, (int)y2);\n");
+        out.push_str("    SelectObject(bl_memdc, old_pen);\n");
+        out.push_str("    DeleteObject(pen);\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static void draw_text(const char* text, int64_t x, int64_t y, int64_t size, int64_t r, int64_t g, int64_t b) {\n");
+        out.push_str("    if (!bl_memdc || !text) return;\n");
+        out.push_str("    HFONT font = CreateFontA((int)size, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, ANSI_CHARSET,\n");
+        out.push_str("        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, \"Arial\");\n");
+        out.push_str("    HGDIOBJ old_font = SelectObject(bl_memdc, font);\n");
+        out.push_str("    SetTextColor(bl_memdc, RGB((int)r, (int)g, (int)b));\n");
+        out.push_str("    SetBkMode(bl_memdc, TRANSPARENT);\n");
+        out.push_str("    TextOutA(bl_memdc, (int)x, (int)y, text, (int)strlen(text));\n");
+        out.push_str("    SelectObject(bl_memdc, old_font);\n");
+        out.push_str("    DeleteObject(font);\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static void window_present(void) {\n");
+        out.push_str("    if (!bl_hdc || !bl_memdc) return;\n");
+        out.push_str("    BitBlt(bl_hdc, 0, 0, bl_win_width, bl_win_height, bl_memdc, 0, 0, SRCCOPY);\n");
+        out.push_str("    Sleep(16);\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static bool is_key_down(int64_t key) {\n");
+        out.push_str("    return (GetAsyncKeyState((int)key) & 0x8000) != 0;\n");
+        out.push_str("}\n");
+        out.push_str("#else\n");
+        out.push_str("static bool window_open(const char* title, int64_t w, int64_t h) { (void)title; (void)w; (void)h; return true; }\n");
+        out.push_str("static void window_close(void) {}\n");
+        out.push_str("static bool window_should_close(void) { return true; }\n");
+        out.push_str("static void window_poll(void) {}\n");
+        out.push_str("static void draw_clear(int64_t r, int64_t g, int64_t b) { (void)r; (void)g; (void)b; }\n");
+        out.push_str("static void draw_rect(int64_t x, int64_t y, int64_t w, int64_t h, int64_t r, int64_t g, int64_t b) { (void)x; (void)y; (void)w; (void)h; (void)r; (void)g; (void)b; }\n");
+        out.push_str("static void draw_circle(int64_t cx, int64_t cy, int64_t radius, int64_t r, int64_t g, int64_t b) { (void)cx; (void)cy; (void)radius; (void)r; (void)g; (void)b; }\n");
+        out.push_str("static void draw_line(int64_t x1, int64_t y1, int64_t x2, int64_t y2, int64_t r, int64_t g, int64_t b) { (void)x1; (void)y1; (void)x2; (void)y2; (void)r; (void)g; (void)b; }\n");
+        out.push_str("static void draw_text(const char* text, int64_t x, int64_t y, int64_t size, int64_t r, int64_t g, int64_t b) { (void)text; (void)x; (void)y; (void)size; (void)r; (void)g; (void)b; }\n");
+        out.push_str("static void window_present(void) {}\n");
+        out.push_str("static bool is_key_down(int64_t key) { (void)key; return false; }\n");
+        out.push_str("#endif\n\n");
 
         // 1. Forward declare struct types
         for item in &program.items {
@@ -118,8 +354,28 @@ impl CodeGen {
             Expr::BinaryOp(_, _, _) => "int64_t".to_string(),
             Expr::UnaryOp(UnOp::Not, _) => "bool".to_string(),
             Expr::UnaryOp(UnOp::Neg, _) => "int64_t".to_string(),
-            Expr::Call(_, _) => "const char*".to_string(),
+            Expr::Call(name, _) => {
+                if name == "str_len" || name.starts_with("math_") {
+                    "int64_t".to_string()
+                } else if name == "window_open" || name == "window_should_close" || name == "is_key_down" {
+                    "bool".to_string()
+                } else if name == "input" {
+                    "const char*".to_string()
+                } else {
+                    "const char*".to_string()
+                }
+            }
             _ => "const char*".to_string(),
+        }
+    }
+
+    fn is_int_expr(expr: &Expr) -> bool {
+        match expr {
+            Expr::Int(_) => true,
+            Expr::BinaryOp(_, BinOp::Sub | BinOp::Mul | BinOp::Div, _) => true,
+            Expr::UnaryOp(UnOp::Neg, _) => true,
+            Expr::Call(name, _) if name.starts_with("math_") || name == "str_len" => true,
+            _ => false,
         }
     }
 
@@ -218,9 +474,48 @@ impl CodeGen {
                 if name == "output" {
                     if let Some(first_arg) = args.first() {
                         let arg_code = Self::emit_expr(&first_arg.expr);
-                        return format!("bl_output_str({})", arg_code);
+                        if Self::is_int_expr(&first_arg.expr) {
+                            return format!("bl_output_int({})", arg_code);
+                        } else {
+                            return format!("bl_output_str({})", arg_code);
+                        }
                     }
                     return "bl_output_str(\"\")".to_string();
+                }
+                if name == "input" {
+                    let prompt_code = if let Some(first_arg) = args.first() {
+                        Self::emit_expr(&first_arg.expr)
+                    } else {
+                        "\"\"".to_string()
+                    };
+                    return format!("bl_input({})", prompt_code);
+                }
+                if name == "str_len" {
+                    let s_code = if let Some(first_arg) = args.first() {
+                        Self::emit_expr(&first_arg.expr)
+                    } else {
+                        "\"\"".to_string()
+                    };
+                    return format!("bl_str_len({})", s_code);
+                }
+                if name == "math_abs" {
+                    let n = Self::emit_expr(&args[0].expr);
+                    return format!("bl_math_abs({})", n);
+                }
+                if name == "math_pow" {
+                    let b = Self::emit_expr(&args[0].expr);
+                    let e = Self::emit_expr(&args[1].expr);
+                    return format!("bl_math_pow({}, {})", b, e);
+                }
+                if name == "math_min" {
+                    let a = Self::emit_expr(&args[0].expr);
+                    let b = Self::emit_expr(&args[1].expr);
+                    return format!("bl_math_min({}, {})", a, b);
+                }
+                if name == "math_max" {
+                    let a = Self::emit_expr(&args[0].expr);
+                    let b = Self::emit_expr(&args[1].expr);
+                    return format!("bl_math_max({}, {})", a, b);
                 }
                 let rendered_args = args.iter().map(|a| Self::emit_expr(&a.expr)).collect::<Vec<_>>().join(", ");
                 format!("{}({})", name, rendered_args)
@@ -258,7 +553,10 @@ impl CodeGen {
         _source: &str,
         output_exe: &Path,
     ) -> Result<PathBuf, CompileError> {
-        let temp_dir = std::env::temp_dir().join(format!("bl_build_{}", std::process::id()));
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        static BUILD_ID: AtomicUsize = AtomicUsize::new(0);
+        let id = BUILD_ID.fetch_add(1, Ordering::SeqCst);
+        let temp_dir = std::env::temp_dir().join(format!("bl_build_{}_{}", std::process::id(), id));
         let _ = fs::create_dir_all(&temp_dir);
 
         let c_source = Self::emit_c(program);
@@ -272,19 +570,28 @@ impl CodeGen {
         }
 
         // Prefer gcc or clang installed on system
-        let status = Command::new("gcc")
-            .arg("-O2")
+        let mut cmd = Command::new("gcc");
+        cmd.arg("-O2")
             .arg("-std=c11")
             .arg("-o")
             .arg(output_exe)
-            .arg(&c_file)
-            .status()
-            .map_err(|e| {
-                CompileError::new(&format!(
-                    "Failed to invoke native compiler 'gcc'. Make sure GCC/Clang is installed: {}",
-                    e
-                ))
-            })?;
+            .arg(&c_file);
+
+        #[cfg(target_os = "windows")]
+        {
+            cmd.arg("-lgdi32").arg("-luser32").arg("-lm");
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            cmd.arg("-lm");
+        }
+
+        let status = cmd.status().map_err(|e| {
+            CompileError::new(&format!(
+                "Failed to invoke native compiler 'gcc'. Make sure GCC/Clang is installed: {}",
+                e
+            ))
+        })?;
 
         let _ = fs::remove_dir_all(&temp_dir);
 

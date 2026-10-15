@@ -62,6 +62,256 @@ impl<'a> SemanticAnalyzer<'a> {
             },
         );
 
+        functions.insert(
+            "input".to_string(),
+            FunctionSignature {
+                name: "input".to_string(),
+                param_names: vec!["prompt".to_string()],
+                param_types: vec![Some(Type::String)],
+                return_type: Some(Type::String),
+                span: Span::new(0, 0),
+            },
+        );
+
+        functions.insert(
+            "str_len".to_string(),
+            FunctionSignature {
+                name: "str_len".to_string(),
+                param_names: vec!["s".to_string()],
+                param_types: vec![Some(Type::String)],
+                return_type: Some(Type::Int),
+                span: Span::new(0, 0),
+            },
+        );
+
+        functions.insert(
+            "math_abs".to_string(),
+            FunctionSignature {
+                name: "math_abs".to_string(),
+                param_names: vec!["n".to_string()],
+                param_types: vec![Some(Type::Int)],
+                return_type: Some(Type::Int),
+                span: Span::new(0, 0),
+            },
+        );
+
+        functions.insert(
+            "math_pow".to_string(),
+            FunctionSignature {
+                name: "math_pow".to_string(),
+                param_names: vec!["base".to_string(), "exp".to_string()],
+                param_types: vec![Some(Type::Int), Some(Type::Int)],
+                return_type: Some(Type::Int),
+                span: Span::new(0, 0),
+            },
+        );
+
+        functions.insert(
+            "math_min".to_string(),
+            FunctionSignature {
+                name: "math_min".to_string(),
+                param_names: vec!["a".to_string(), "b".to_string()],
+                param_types: vec![Some(Type::Int), Some(Type::Int)],
+                return_type: Some(Type::Int),
+                span: Span::new(0, 0),
+            },
+        );
+
+        functions.insert(
+            "math_max".to_string(),
+            FunctionSignature {
+                name: "math_max".to_string(),
+                param_names: vec!["a".to_string(), "b".to_string()],
+                param_types: vec![Some(Type::Int), Some(Type::Int)],
+                return_type: Some(Type::Int),
+                span: Span::new(0, 0),
+            },
+        );
+
+        // 2D Graphics functions
+        functions.insert(
+            "window_open".to_string(),
+            FunctionSignature {
+                name: "window_open".to_string(),
+                param_names: vec!["title".to_string(), "width".to_string(), "height".to_string()],
+                param_types: vec![Some(Type::String), Some(Type::Int), Some(Type::Int)],
+                return_type: Some(Type::Bool),
+                span: Span::new(0, 0),
+            },
+        );
+
+        functions.insert(
+            "window_close".to_string(),
+            FunctionSignature {
+                name: "window_close".to_string(),
+                param_names: vec![],
+                param_types: vec![],
+                return_type: Some(Type::Void),
+                span: Span::new(0, 0),
+            },
+        );
+
+        functions.insert(
+            "window_should_close".to_string(),
+            FunctionSignature {
+                name: "window_should_close".to_string(),
+                param_names: vec![],
+                param_types: vec![],
+                return_type: Some(Type::Bool),
+                span: Span::new(0, 0),
+            },
+        );
+
+        functions.insert(
+            "window_poll".to_string(),
+            FunctionSignature {
+                name: "window_poll".to_string(),
+                param_names: vec![],
+                param_types: vec![],
+                return_type: Some(Type::Void),
+                span: Span::new(0, 0),
+            },
+        );
+
+        functions.insert(
+            "draw_clear".to_string(),
+            FunctionSignature {
+                name: "draw_clear".to_string(),
+                param_names: vec!["r".to_string(), "g".to_string(), "b".to_string()],
+                param_types: vec![Some(Type::Int), Some(Type::Int), Some(Type::Int)],
+                return_type: Some(Type::Void),
+                span: Span::new(0, 0),
+            },
+        );
+
+        functions.insert(
+            "draw_rect".to_string(),
+            FunctionSignature {
+                name: "draw_rect".to_string(),
+                param_names: vec![
+                    "x".to_string(),
+                    "y".to_string(),
+                    "w".to_string(),
+                    "h".to_string(),
+                    "r".to_string(),
+                    "g".to_string(),
+                    "b".to_string(),
+                ],
+                param_types: vec![
+                    Some(Type::Int),
+                    Some(Type::Int),
+                    Some(Type::Int),
+                    Some(Type::Int),
+                    Some(Type::Int),
+                    Some(Type::Int),
+                    Some(Type::Int),
+                ],
+                return_type: Some(Type::Void),
+                span: Span::new(0, 0),
+            },
+        );
+
+        functions.insert(
+            "draw_circle".to_string(),
+            FunctionSignature {
+                name: "draw_circle".to_string(),
+                param_names: vec![
+                    "cx".to_string(),
+                    "cy".to_string(),
+                    "radius".to_string(),
+                    "r".to_string(),
+                    "g".to_string(),
+                    "b".to_string(),
+                ],
+                param_types: vec![
+                    Some(Type::Int),
+                    Some(Type::Int),
+                    Some(Type::Int),
+                    Some(Type::Int),
+                    Some(Type::Int),
+                    Some(Type::Int),
+                ],
+                return_type: Some(Type::Void),
+                span: Span::new(0, 0),
+            },
+        );
+
+        functions.insert(
+            "draw_line".to_string(),
+            FunctionSignature {
+                name: "draw_line".to_string(),
+                param_names: vec![
+                    "x1".to_string(),
+                    "y1".to_string(),
+                    "x2".to_string(),
+                    "y2".to_string(),
+                    "r".to_string(),
+                    "g".to_string(),
+                    "b".to_string(),
+                ],
+                param_types: vec![
+                    Some(Type::Int),
+                    Some(Type::Int),
+                    Some(Type::Int),
+                    Some(Type::Int),
+                    Some(Type::Int),
+                    Some(Type::Int),
+                    Some(Type::Int),
+                ],
+                return_type: Some(Type::Void),
+                span: Span::new(0, 0),
+            },
+        );
+
+        functions.insert(
+            "draw_text".to_string(),
+            FunctionSignature {
+                name: "draw_text".to_string(),
+                param_names: vec![
+                    "text".to_string(),
+                    "x".to_string(),
+                    "y".to_string(),
+                    "size".to_string(),
+                    "r".to_string(),
+                    "g".to_string(),
+                    "b".to_string(),
+                ],
+                param_types: vec![
+                    Some(Type::String),
+                    Some(Type::Int),
+                    Some(Type::Int),
+                    Some(Type::Int),
+                    Some(Type::Int),
+                    Some(Type::Int),
+                    Some(Type::Int),
+                ],
+                return_type: Some(Type::Void),
+                span: Span::new(0, 0),
+            },
+        );
+
+        functions.insert(
+            "window_present".to_string(),
+            FunctionSignature {
+                name: "window_present".to_string(),
+                param_names: vec![],
+                param_types: vec![],
+                return_type: Some(Type::Void),
+                span: Span::new(0, 0),
+            },
+        );
+
+        functions.insert(
+            "is_key_down".to_string(),
+            FunctionSignature {
+                name: "is_key_down".to_string(),
+                param_names: vec!["key".to_string()],
+                param_types: vec![Some(Type::Int)],
+                return_type: Some(Type::Bool),
+                span: Span::new(0, 0),
+            },
+        );
+
         Self {
             source,
             structs: HashMap::new(),

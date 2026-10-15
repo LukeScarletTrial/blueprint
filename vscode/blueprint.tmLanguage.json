@@ -25,11 +25,11 @@
     },
     {
       "name": "support.type.primitive.blueprint",
-      "match": "\\b(int|string|bool|void)\\b"
+      "match": "\\b(int|string|str|bool|void)\\b"
     },
     {
       "name": "support.function.builtin.blueprint",
-      "match": "\\b(output|Setup)\\b"
+      "match": "\\b(output|input|str_len|math_abs|math_pow|math_min|math_max|window_open|window_close|window_should_close|window_poll|window_present|draw_clear|draw_rect|draw_circle|draw_line|draw_text|is_key_down|Setup)\\b"
     },
     {
       "name": "string.quoted.double.blueprint",
@@ -65,6 +65,10 @@
     {
       "name": "keyword.operator.assignment.blueprint",
       "match": "="
+    },
+    {
+      "name": "punctuation.bracket.curly.blueprint",
+      "match": "\\{|\\}"
     },
     {
       "name": "punctuation.bracket.square.blueprint",

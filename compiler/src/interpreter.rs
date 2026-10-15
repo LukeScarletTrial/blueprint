@@ -316,6 +316,71 @@ impl Interpreter {
                     self.runtime.output(&line);
                     return Ok(Value::Void);
                 }
+                if name == "str_len" {
+                    if let Some(first) = args.first() {
+                        let v = self.eval_expr(first, env)?;
+                        let s = v.display_string();
+                        return Ok(Value::Int(s.len() as i64));
+                    }
+                    return Ok(Value::Int(0));
+                }
+                if name == "math_abs" {
+                    if let Some(first) = args.first() {
+                        let v = self.eval_expr(first, env)?;
+                        if let Value::Int(n) = v {
+                            return Ok(Value::Int(n.abs()));
+                        }
+                    }
+                    return Ok(Value::Int(0));
+                }
+                if name == "math_pow" {
+                    if args.len() >= 2 {
+                        let base_val = self.eval_expr(&args[0], env)?;
+                        let exp_val = self.eval_expr(&args[1], env)?;
+                        if let (Value::Int(b), Value::Int(e)) = (base_val, exp_val) {
+                            return Ok(Value::Int(b.pow(e.max(0) as u32)));
+                        }
+                    }
+                    return Ok(Value::Int(0));
+                }
+                if name == "math_min" {
+                    if args.len() >= 2 {
+                        let a_val = self.eval_expr(&args[0], env)?;
+                        let b_val = self.eval_expr(&args[1], env)?;
+                        if let (Value::Int(a), Value::Int(b)) = (a_val, b_val) {
+                            return Ok(Value::Int(a.min(b)));
+                        }
+                    }
+                    return Ok(Value::Int(0));
+                }
+                if name == "math_max" {
+                    if args.len() >= 2 {
+                        let a_val = self.eval_expr(&args[0], env)?;
+                        let b_val = self.eval_expr(&args[1], env)?;
+                        if let (Value::Int(a), Value::Int(b)) = (a_val, b_val) {
+                            return Ok(Value::Int(a.max(b)));
+                        }
+                    }
+                    return Ok(Value::Int(0));
+                }
+                if name == "input" {
+                    // In non-interactive test/interpreter mode return a placeholder or read stdin
+                    return Ok(Value::String("".to_string()));
+                }
+                if name == "window_open" {
+                    return Ok(Value::Bool(true));
+                }
+                if name == "window_close" || name == "window_poll" || name == "window_present"
+                    || name == "draw_clear" || name == "draw_rect" || name == "draw_circle"
+                    || name == "draw_line" || name == "draw_text" {
+                    return Ok(Value::Void);
+                }
+                if name == "window_should_close" {
+                    return Ok(Value::Bool(false));
+                }
+                if name == "is_key_down" {
+                    return Ok(Value::Bool(false));
+                }
 
                 let func = match self.funcs.get(name).cloned() {
                     Some(f) => f,
