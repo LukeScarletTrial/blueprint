@@ -283,7 +283,7 @@ func vector_add(a: Vector2, b: Vector2): Vector2 [
 func Main(): [
     def v1 = Vector2[10, 20]
     def v2 = Vector2[30, 40]
-    def v3 = vector_add(v1, v2)
+    def v3 = vector.vector_add(v1, v2)
     output("Result: " + v3.x + ", " + v3.y)
 ]
 "#;

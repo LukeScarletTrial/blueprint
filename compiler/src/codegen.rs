@@ -548,9 +548,18 @@ impl CodeGen {
                 format!("({}){{ {} }}", struct_name, rendered_fields)
             }
             Expr::MethodCall(target, method, args) => {
-                let t = Self::emit_expr(&target.expr);
                 let rendered_args = args.iter().map(|a| Self::emit_expr(&a.expr)).collect::<Vec<_>>().join(", ");
-                format!("{}_{}({}, {})", t, method, t, rendered_args)
+                // If calling a function on an imported module (e.g. library.example_func(...))
+                if let Expr::Ident(_mod_name) = &target.expr {
+                    // Call the function directly
+                    return format!("{}({})", method, rendered_args);
+                }
+                let t = Self::emit_expr(&target.expr);
+                if rendered_args.is_empty() {
+                    format!("{}_{}({})", t, method, t)
+                } else {
+                    format!("{}_{}({}, {})", t, method, t, rendered_args)
+                }
             }
         }
     }

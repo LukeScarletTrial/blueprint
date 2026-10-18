@@ -45,6 +45,7 @@ pub struct SemanticAnalyzer<'a> {
     functions: HashMap<String, FunctionSignature>,
     scopes: Vec<HashMap<String, Type>>,
     current_function: Option<String>,
+    imported_modules: std::collections::HashSet<String>,
 }
 
 impl<'a> SemanticAnalyzer<'a> {
@@ -134,6 +135,7 @@ impl<'a> SemanticAnalyzer<'a> {
             functions,
             scopes: Vec::new(),
             current_function: None,
+            imported_modules: std::collections::HashSet::new(),
         }
     }
 
@@ -366,8 +368,20 @@ impl<'a> SemanticAnalyzer<'a> {
     pub fn analyze_program(&mut self, program: &Program) -> Result<(), SemanticError> {
         // Pass 0: Check imports / annotations
         for ann in &program.annotations {
-            if ann.name == "blueprint" && ann.target == "AppToolkit" {
-                self.register_app_toolkit();
+            if ann.name == "blueprint" {
+                if ann.target == "AppToolkit" {
+                    self.register_app_toolkit();
+                } else if ann.target.starts_with("modules/") {
+                    let mod_name = ann.target.trim_start_matches("modules/").to_string();
+                    let simple_name = mod_name
+                        .trim_end_matches(".blm")
+                        .split('/')
+                        .last()
+                        .unwrap_or(&mod_name)
+                        .to_string();
+                    self.imported_modules.insert(mod_name);
+                    self.imported_modules.insert(simple_name);
+                }
             }
         }
 
@@ -547,6 +561,8 @@ impl<'a> SemanticAnalyzer<'a> {
                     Ok(ty)
                 } else if self.functions.contains_key(name) {
                     Ok(Type::Custom("Function".into()))
+                } else if self.imported_modules.contains(name) {
+                    Ok(Type::Custom("Module".into()))
                 } else {
                     self.error(format!("Undefined variable '{}'", name), span)
                 }
@@ -733,11 +749,21 @@ impl<'a> SemanticAnalyzer<'a> {
                     ),
                 }
             }
-            Expr::MethodCall(target, _method, args) => {
-                self.analyze_expr(target)?;
+            Expr::MethodCall(target, method, args) => {
+                let target_ty = self.analyze_expr(target)?;
                 for arg in args {
                     self.analyze_expr(arg)?;
                 }
+
+                // If calling a method on an imported module (e.g. library.example_func(...))
+                if target_ty == Type::Custom("Module".into()) {
+                    if let Some(sig) = self.functions.get(method) {
+                        return Ok(sig.return_type.clone().unwrap_or(Type::Custom("Any".into())));
+                    }
+                    // If function was imported, return Any/Type
+                    return Ok(Type::Custom("Any".into()));
+                }
+
                 // For MVP, allow method call or treat as dynamic
                 Ok(Type::Custom("Any".into()))
             }

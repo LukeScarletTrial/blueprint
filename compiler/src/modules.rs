@@ -44,16 +44,30 @@ pub fn resolve_modules(base_dir: &Path, program: &mut Program) -> Result<(), Com
 }
 
 fn load_module(base_dir: &Path, mod_name: &str, program: &mut Program) -> Result<(), CompileError> {
-    // 0. Check if a precompiled .blm file exists (e.g. modules/<name>.blm or modules/<name>/<name>.blm)
-    let direct_blm = base_dir.join("modules").join(format!("{}.blm", mod_name));
-    let inside_blm = base_dir.join("modules").join(mod_name).join(format!("{}.blm", mod_name));
-    let blm_path = if direct_blm.is_file() {
-        Some(direct_blm)
-    } else if inside_blm.is_file() {
-        Some(inside_blm)
-    } else {
-        None
-    };
+    let raw_name = mod_name.trim_end_matches(".blm");
+
+    // 0. Check if a precompiled .blm file exists in:
+    //    - modules/<name>.blm
+    //    - modules/<name>
+    //    - <name>.blm (in project root)
+    //    - modules/<name>/<name>.blm
+    //    - modules/<name>/package.blm
+    let candidates = [
+        base_dir.join("modules").join(format!("{}.blm", raw_name)),
+        base_dir.join("modules").join(mod_name),
+        base_dir.join(format!("{}.blm", raw_name)),
+        base_dir.join(mod_name),
+        base_dir.join("modules").join(raw_name).join(format!("{}.blm", raw_name)),
+        base_dir.join("modules").join(raw_name).join("package.blm"),
+    ];
+
+    let mut blm_path = None;
+    for cand in &candidates {
+        if cand.is_file() {
+            blm_path = Some(cand.clone());
+            break;
+        }
+    }
 
     if let Some(blm_file) = blm_path {
         let blm_code = fs::read_to_string(&blm_file).map_err(|e| {
@@ -77,14 +91,24 @@ fn load_module(base_dir: &Path, mod_name: &str, program: &mut Program) -> Result
         return Ok(());
     }
 
-    let mod_dir = base_dir.join("modules").join(mod_name);
-    if !mod_dir.is_dir() {
-        return Err(CompileError::new(&format!(
-            "Module not found: neither compiled module '{}.blm' nor directory '{}' exists",
-            mod_name,
-            mod_dir.display()
-        )));
-    }
+    let dir_candidates = [
+        base_dir.join("modules").join(mod_name),
+        base_dir.join("modules").join(raw_name),
+        base_dir.join(mod_name),
+        base_dir.join(raw_name),
+    ];
+
+    let mod_dir = dir_candidates.iter().find(|d| d.is_dir());
+    let mod_dir = match mod_dir {
+        Some(d) => d,
+        None => {
+            return Err(CompileError::new(&format!(
+                "Module not found: neither compiled module '{}.blm' nor directory 'modules/{}' exists",
+                raw_name,
+                raw_name
+            )));
+        }
+    };
 
     // 1. Verify package.bls if present (module manifest)
     let package_bls = mod_dir.join("package.bls");

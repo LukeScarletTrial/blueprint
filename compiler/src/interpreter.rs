@@ -447,6 +447,28 @@ impl Interpreter {
                 }
             }
             Expr::MethodCall(target, method, args) => {
+                // If calling a function on an imported module (e.g. library.example_func(...))
+                if let Expr::Ident(_mod_name) = &target.expr {
+                    if let Some(func) = self.funcs.get(method).cloned() {
+                        let mut arg_vals = Vec::new();
+                        for a in args {
+                            arg_vals.push(self.eval_expr(a, env)?);
+                        }
+
+                        let mut new_scope = HashMap::new();
+                        for (param, val) in func.params.iter().zip(arg_vals.into_iter()) {
+                            new_scope.insert(param.name.clone(), val);
+                        }
+
+                        let mut func_env = vec![self.globals.clone(), new_scope];
+                        let res = self.execute_block(&func.body, &mut func_env)?;
+                        return match res {
+                            ControlFlow::Return(v) => Ok(v),
+                            ControlFlow::None => Ok(Value::Void),
+                        };
+                    }
+                }
+
                 let _target_val = self.eval_expr(target, env)?;
                 for a in args {
                     self.eval_expr(a, env)?;
