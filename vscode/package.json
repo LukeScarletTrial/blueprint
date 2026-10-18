@@ -1,13 +1,14 @@
 {
   "name": "blueprint-lang",
   "displayName": "Blueprint Language Support",
-  "description": "Syntax highlighting, file icons, and snippets for Blueprint (.bl) and Blueprint Setup (.bls)",
-  "version": "0.1.0",
+  "description": "Syntax highlighting, file icons, and snippets for Blueprint (.bl), Blueprint Setup (.bls), and Blueprint Modules (.blm)",
+  "version": "0.1.1",
   "icon": "logo.png",
   "publisher": "LukeScarletTrial",
   "main": "./extension.js",
   "activationEvents": [
-    "onLanguage:blueprint"
+    "onLanguage:blueprint",
+    "onLanguage:blueprint-module"
   ],
   "engines": {
     "vscode": "^1.70.0"
@@ -43,11 +44,28 @@
           ".bls"
         ],
         "filenames": [
-          "app.bls"
+          "app.bls",
+          "config.bls",
+          "package.bls"
         ],
         "icon": {
           "light": "./deps_logo.png",
           "dark": "./deps_logo.png"
+        },
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "blueprint-module",
+        "aliases": [
+          "Blueprint Module",
+          "blueprint-module"
+        ],
+        "extensions": [
+          ".blm"
+        ],
+        "icon": {
+          "light": "./blm_logo.png",
+          "dark": "./blm_logo.png"
         },
         "configuration": "./language-configuration.json"
       }
@@ -55,6 +73,11 @@
     "grammars": [
       {
         "language": "blueprint",
+        "scopeName": "source.blueprint",
+        "path": "./blueprint.tmLanguage.json"
+      },
+      {
+        "language": "blueprint-module",
         "scopeName": "source.blueprint",
         "path": "./blueprint.tmLanguage.json"
       },

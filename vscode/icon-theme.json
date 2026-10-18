@@ -5,13 +5,19 @@
     },
     "_blueprint_setup": {
       "iconPath": "./deps_logo.png"
+    },
+    "_blueprint_module": {
+      "iconPath": "./blm_logo.png"
     }
   },
   "fileExtensions": {
     "bl": "_blueprint_file",
-    "bls": "_blueprint_setup"
+    "bls": "_blueprint_setup",
+    "blm": "_blueprint_module"
   },
   "fileNames": {
-    "app.bls": "_blueprint_setup"
+    "app.bls": "_blueprint_setup",
+    "config.bls": "_blueprint_setup",
+    "package.bls": "_blueprint_setup"
   }
 }

@@ -47,7 +47,7 @@ const BUILTINS = [
 
 function activate(context) {
     const provider = vscode.languages.registerCompletionItemProvider(
-        'blueprint',
+        ['blueprint', 'blueprint-module'],
         {
             provideCompletionItems(document, position) {
                 const items = [];
