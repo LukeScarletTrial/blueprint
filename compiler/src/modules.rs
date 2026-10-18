@@ -44,10 +44,44 @@ pub fn resolve_modules(base_dir: &Path, program: &mut Program) -> Result<(), Com
 }
 
 fn load_module(base_dir: &Path, mod_name: &str, program: &mut Program) -> Result<(), CompileError> {
+    // 0. Check if a precompiled .blm file exists (e.g. modules/<name>.blm or modules/<name>/<name>.blm)
+    let direct_blm = base_dir.join("modules").join(format!("{}.blm", mod_name));
+    let inside_blm = base_dir.join("modules").join(mod_name).join(format!("{}.blm", mod_name));
+    let blm_path = if direct_blm.is_file() {
+        Some(direct_blm)
+    } else if inside_blm.is_file() {
+        Some(inside_blm)
+    } else {
+        None
+    };
+
+    if let Some(blm_file) = blm_path {
+        let blm_code = fs::read_to_string(&blm_file).map_err(|e| {
+            CompileError::new(&format!(
+                "Failed to read compiled module '{}': {}",
+                blm_file.display(),
+                e
+            ))
+        })?;
+        let blm_code = blm_code.strip_prefix('\u{FEFF}').unwrap_or(&blm_code);
+        let tokens = tokenize(blm_code)?;
+        let parsed = parse_program(blm_code, tokens)?;
+        for item in parsed.items {
+            match item {
+                Item::Func(_) | Item::Struct(_) | Item::Var(_) => {
+                    program.items.push(item);
+                }
+                _ => {}
+            }
+        }
+        return Ok(());
+    }
+
     let mod_dir = base_dir.join("modules").join(mod_name);
     if !mod_dir.is_dir() {
         return Err(CompileError::new(&format!(
-            "Module directory not found: '{}'",
+            "Module not found: neither compiled module '{}.blm' nor directory '{}' exists",
+            mod_name,
             mod_dir.display()
         )));
     }

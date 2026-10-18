@@ -254,3 +254,46 @@ func Main(): [
     let _ = fs::remove_dir_all(&temp_root);
 }
 
+#[test]
+fn test_compiled_blm_module_import() {
+    use blueprint_compiler::run_with_base_dir;
+    use std::fs;
+
+    let temp_root = std::env::temp_dir().join(format!("bl_test_blm_{}", std::process::id()));
+    let modules_dir = temp_root.join("modules");
+    fs::create_dir_all(&modules_dir).expect("create modules dir");
+
+    // Create a standalone precompiled .blm file (vector.blm)
+    let blm_content = r#"// Blueprint Compiled Module: vector
+defstruct Vector2 [
+    x: int,
+    y: int
+]
+
+func vector_add(a: Vector2, b: Vector2): Vector2 [
+    return Vector2[a.x + b.x, a.y + b.y]
+]
+"#;
+    fs::write(modules_dir.join("vector.blm"), blm_content).expect("write vector.blm");
+
+    let main_src = r#"
+@blueprint import Blueprint
+@blueprint import modules/vector
+
+func Main(): [
+    def v1 = Vector2[10, 20]
+    def v2 = Vector2[30, 40]
+    def v3 = vector_add(v1, v2)
+    output("Result: " + v3.x + ", " + v3.y)
+]
+"#;
+
+    let res = run_with_base_dir(main_src, &temp_root);
+    assert!(res.is_ok(), "Run with .blm module failed: {:?}", res.err());
+    let (_, output) = res.unwrap();
+    assert_eq!(output, vec!["Result: 40, 60"]);
+
+    let _ = fs::remove_dir_all(&temp_root);
+}
+
+
