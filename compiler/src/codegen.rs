@@ -68,6 +68,26 @@ impl CodeGen {
         out.push_str("    return copy;\n");
         out.push_str("}\n\n");
 
+        out.push_str("static char* bl_int_to_str(int64_t val) {\n");
+        out.push_str("    char buf[64];\n");
+        out.push_str("    snprintf(buf, sizeof(buf), \"%lld\", (long long)val);\n");
+        out.push_str("    return bl_arc_str(buf);\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static char* bl_bool_to_str(bool val) {\n");
+        out.push_str("    return bl_arc_str(val ? \"true\" : \"false\");\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static const char* bl_pass_str(const char* s) { return s; }\n\n");
+
+        out.push_str("#define bl_to_str(x) _Generic((x), \\\n");
+        out.push_str("    int: bl_int_to_str, \\\n");
+        out.push_str("    long: bl_int_to_str, \\\n");
+        out.push_str("    long long: bl_int_to_str, \\\n");
+        out.push_str("    bool: bl_bool_to_str, \\\n");
+        out.push_str("    default: bl_pass_str \\\n");
+        out.push_str(")(x)\n\n");
+
         out.push_str("static char* bl_concat(const char* s1, const char* s2) {\n");
         out.push_str("    if (!s1) s1 = \"\";\n");
         out.push_str("    if (!s2) s2 = \"\";\n");
@@ -77,12 +97,6 @@ impl CodeGen {
         out.push_str("    memcpy(res, s1, len1);\n");
         out.push_str("    memcpy(res + len1, s2, len2 + 1);\n");
         out.push_str("    return res;\n");
-        out.push_str("}\n\n");
-
-        out.push_str("static char* bl_int_to_str(int64_t val) {\n");
-        out.push_str("    char buf[64];\n");
-        out.push_str("    snprintf(buf, sizeof(buf), \"%lld\", (long long)val);\n");
-        out.push_str("    return bl_arc_str(buf);\n");
         out.push_str("}\n\n");
 
         // Standard library runtime helpers: IO and Math
@@ -478,7 +492,7 @@ impl CodeGen {
                 match op {
                     BinOp::Add => {
                         // Check if string concatenation
-                        format!("bl_concat({}, {})", l, r)
+                        format!("bl_concat(bl_to_str({}), bl_to_str({}))", l, r)
                     }
                     BinOp::Sub => format!("({} - {})", l, r),
                     BinOp::Mul => format!("({} * {})", l, r),
