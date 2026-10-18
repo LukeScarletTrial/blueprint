@@ -316,7 +316,7 @@ impl CodeGen {
                 let params = Self::c_params(&func.params);
                 out.push_str(&format!("{} {}({}) {{\n", ret_ty, func.name, params));
                 for stmt in &func.body {
-                    Self::emit_stmt(&mut out, stmt, 1);
+                    Self::emit_stmt(&mut out, stmt, program, 1);
                 }
                 out.push_str("}\n\n");
             }
@@ -352,7 +352,7 @@ impl CodeGen {
         }
     }
 
-    fn infer_c_type(expr: &Expr) -> String {
+    fn infer_c_type(expr: &Expr, program: &Program) -> String {
         match expr {
             Expr::Int(_) => "int64_t".to_string(),
             Expr::Bool(_) => "bool".to_string(),
@@ -371,8 +371,29 @@ impl CodeGen {
                 } else if name == "input" {
                     "const char*".to_string()
                 } else {
+                    for item in &program.items {
+                        if let Item::Func(f) = item {
+                            if &f.name == name {
+                                if let Some(ref ty) = f.return_ty {
+                                    return Self::c_type(ty);
+                                }
+                            }
+                        }
+                    }
                     "const char*".to_string()
                 }
+            }
+            Expr::MethodCall(_, method, _) => {
+                for item in &program.items {
+                    if let Item::Func(f) = item {
+                        if &f.name == method {
+                            if let Some(ref ty) = f.return_ty {
+                                return Self::c_type(ty);
+                            }
+                        }
+                    }
+                }
+                "const char*".to_string()
             }
             _ => "const char*".to_string(),
         }
@@ -402,7 +423,7 @@ impl CodeGen {
             .join(", ")
     }
 
-    fn emit_stmt(out: &mut String, stmt: &Stmt, indent_level: usize) {
+    fn emit_stmt(out: &mut String, stmt: &Stmt, program: &Program, indent_level: usize) {
         let ind = "    ".repeat(indent_level);
         match stmt {
             Stmt::VarDef(v) => {
@@ -410,7 +431,7 @@ impl CodeGen {
                 let ty_str = if let Some(ref ty) = v.explicit_ty {
                     Self::c_type(ty)
                 } else {
-                    Self::infer_c_type(&v.expr.expr)
+                    Self::infer_c_type(&v.expr.expr, program)
                 };
                 out.push_str(&format!("{}{} {} = {};\n", ind, ty_str, v.name, expr_code));
             }
@@ -425,12 +446,12 @@ impl CodeGen {
                 let cond = Self::emit_expr(&if_stmt.condition.expr);
                 out.push_str(&format!("{}if ({}) {{\n", ind, cond));
                 for s in &if_stmt.then_branch {
-                    Self::emit_stmt(out, s, indent_level + 1);
+                    Self::emit_stmt(out, s, program, indent_level + 1);
                 }
                 if let Some(ref else_branch) = if_stmt.else_branch {
                     out.push_str(&format!("{}}} else {{\n", ind));
                     for s in else_branch {
-                        Self::emit_stmt(out, s, indent_level + 1);
+                        Self::emit_stmt(out, s, program, indent_level + 1);
                     }
                 }
                 out.push_str(&format!("{}}}\n", ind));
