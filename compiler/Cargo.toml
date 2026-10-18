@@ -13,3 +13,10 @@ chumsky = "0.10"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
+# Cranelift: direct Blueprint AST → native machine code backend (no C transpilation)
+cranelift-codegen = { version = "0.116", features = ["x86"] }
+cranelift-frontend = "0.116"
+cranelift-module = "0.116"
+cranelift-object = "0.116"
+cranelift-native = "0.116"
+target-lexicon = "0.12"
