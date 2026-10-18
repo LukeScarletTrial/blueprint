@@ -327,6 +327,15 @@ impl CodeGen {
         out.push_str("    (void)argc;\n");
         out.push_str("    (void)argv;\n");
         out.push_str("    Main();\n");
+        out.push_str("#ifdef _WIN32\n");
+        out.push_str("    if (bl_hwnd && !bl_should_close) {\n");
+        out.push_str("        while (!window_should_close()) {\n");
+        out.push_str("            window_poll();\n");
+        out.push_str("            window_present();\n");
+        out.push_str("        }\n");
+        out.push_str("        window_close();\n");
+        out.push_str("    }\n");
+        out.push_str("#endif\n");
         out.push_str("    return 0;\n");
         out.push_str("}\n");
 

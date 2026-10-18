@@ -128,8 +128,17 @@ impl<'a> SemanticAnalyzer<'a> {
             },
         );
 
-        // 2D Graphics functions
-        functions.insert(
+        Self {
+            source,
+            structs: HashMap::new(),
+            functions,
+            scopes: Vec::new(),
+            current_function: None,
+        }
+    }
+
+    pub fn register_app_toolkit(&mut self) {
+        self.functions.insert(
             "window_open".to_string(),
             FunctionSignature {
                 name: "window_open".to_string(),
@@ -140,7 +149,7 @@ impl<'a> SemanticAnalyzer<'a> {
             },
         );
 
-        functions.insert(
+        self.functions.insert(
             "window_close".to_string(),
             FunctionSignature {
                 name: "window_close".to_string(),
@@ -151,7 +160,7 @@ impl<'a> SemanticAnalyzer<'a> {
             },
         );
 
-        functions.insert(
+        self.functions.insert(
             "window_should_close".to_string(),
             FunctionSignature {
                 name: "window_should_close".to_string(),
@@ -162,7 +171,7 @@ impl<'a> SemanticAnalyzer<'a> {
             },
         );
 
-        functions.insert(
+        self.functions.insert(
             "window_poll".to_string(),
             FunctionSignature {
                 name: "window_poll".to_string(),
@@ -173,7 +182,7 @@ impl<'a> SemanticAnalyzer<'a> {
             },
         );
 
-        functions.insert(
+        self.functions.insert(
             "draw_clear".to_string(),
             FunctionSignature {
                 name: "draw_clear".to_string(),
@@ -184,7 +193,7 @@ impl<'a> SemanticAnalyzer<'a> {
             },
         );
 
-        functions.insert(
+        self.functions.insert(
             "draw_rect".to_string(),
             FunctionSignature {
                 name: "draw_rect".to_string(),
@@ -211,7 +220,7 @@ impl<'a> SemanticAnalyzer<'a> {
             },
         );
 
-        functions.insert(
+        self.functions.insert(
             "draw_circle".to_string(),
             FunctionSignature {
                 name: "draw_circle".to_string(),
@@ -236,7 +245,7 @@ impl<'a> SemanticAnalyzer<'a> {
             },
         );
 
-        functions.insert(
+        self.functions.insert(
             "draw_line".to_string(),
             FunctionSignature {
                 name: "draw_line".to_string(),
@@ -263,7 +272,7 @@ impl<'a> SemanticAnalyzer<'a> {
             },
         );
 
-        functions.insert(
+        self.functions.insert(
             "draw_text".to_string(),
             FunctionSignature {
                 name: "draw_text".to_string(),
@@ -290,7 +299,7 @@ impl<'a> SemanticAnalyzer<'a> {
             },
         );
 
-        functions.insert(
+        self.functions.insert(
             "window_present".to_string(),
             FunctionSignature {
                 name: "window_present".to_string(),
@@ -301,7 +310,7 @@ impl<'a> SemanticAnalyzer<'a> {
             },
         );
 
-        functions.insert(
+        self.functions.insert(
             "is_key_down".to_string(),
             FunctionSignature {
                 name: "is_key_down".to_string(),
@@ -311,14 +320,6 @@ impl<'a> SemanticAnalyzer<'a> {
                 span: Span::new(0, 0),
             },
         );
-
-        Self {
-            source,
-            structs: HashMap::new(),
-            functions,
-            scopes: Vec::new(),
-            current_function: None,
-        }
     }
 
     fn error<T>(&self, message: impl Into<String>, span: Span) -> Result<T, SemanticError> {
@@ -363,6 +364,13 @@ impl<'a> SemanticAnalyzer<'a> {
     }
 
     pub fn analyze_program(&mut self, program: &Program) -> Result<(), SemanticError> {
+        // Pass 0: Check imports / annotations
+        for ann in &program.annotations {
+            if ann.name == "blueprint" && ann.target == "AppToolkit" {
+                self.register_app_toolkit();
+            }
+        }
+
         // Pass 1: Collect struct definitions
         for item in &program.items {
             if let Item::Struct(st) = item {

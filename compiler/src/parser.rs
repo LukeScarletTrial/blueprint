@@ -174,11 +174,22 @@ impl<'a> Parser<'a> {
         if import_kw != "import" {
             return self.error("Expected 'import' after '@blueprint'", at_tok.span);
         }
-        let (target, target_span) = self.expect_ident()?;
+        let (mut target, mut last_span) = self.expect_ident()?;
+        while let Some(tok) = self.peek() {
+            if tok.token == Token::Slash {
+                self.advance();
+                let (next_ident, next_span) = self.expect_ident()?;
+                target.push('/');
+                target.push_str(&next_ident);
+                last_span = next_span;
+            } else {
+                break;
+            }
+        }
         Ok(Annotation {
             name: "blueprint".into(),
             target,
-            span: Span::new(at_tok.span.start, target_span.end),
+            span: Span::new(at_tok.span.start, last_span.end),
         })
     }
 

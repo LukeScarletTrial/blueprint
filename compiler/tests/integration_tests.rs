@@ -166,6 +166,7 @@ fn test_native_gcc_stdlib_and_graphics() {
 
     let src = r#"
 @blueprint import Blueprint
+@blueprint import AppToolkit
 Blueprint.Setup("Graphics And Stdlib Test", true)
 
 func Main(): [
@@ -193,3 +194,63 @@ func Main(): [
 
     let _ = std::fs::remove_file(out_exe);
 }
+
+#[test]
+fn test_component_module_import() {
+    use blueprint_compiler::run_with_base_dir;
+    use std::fs;
+
+    let temp_root = std::env::temp_dir().join(format!("bl_test_mod_{}", std::process::id()));
+    let mod_dir = temp_root.join("modules").join("shapes");
+    let funcs_dir = mod_dir.join("functions");
+    fs::create_dir_all(&funcs_dir).expect("create mod dirs");
+
+    // package.bls
+    let package_bls = r#"{
+        "name": "shapes",
+        "version": "1.0.0",
+        "functions": ["calc_area"]
+    }"#;
+    fs::write(mod_dir.join("package.bls"), package_bls).expect("write package.bls");
+
+    // package.bl
+    let package_bl = r#"
+defstruct ShapeInfo [
+    sides: int
+]
+
+func DescribeShape(s: ShapeInfo): str [
+    return "Shape with sides: " + s.sides
+]
+"#;
+    fs::write(mod_dir.join("package.bl"), package_bl).expect("write package.bl");
+
+    // functions/calc_area.bl
+    let calc_area_bl = r#"
+func calc_area(w: int, h: int): int [
+    return w * h
+]
+"#;
+    fs::write(funcs_dir.join("calc_area.bl"), calc_area_bl).expect("write calc_area.bl");
+
+    // Main application code importing modules/shapes
+    let main_src = r#"
+@blueprint import Blueprint
+@blueprint import modules/shapes
+
+func Main(): [
+    def area = calc_area(5, 10)
+    def s = ShapeInfo[4]
+    def desc = DescribeShape(s)
+    output(desc + " Area: " + area)
+]
+"#;
+
+    let res = run_with_base_dir(main_src, &temp_root);
+    assert!(res.is_ok(), "Run with module failed: {:?}", res.err());
+    let (_, output) = res.unwrap();
+    assert_eq!(output, vec!["Shape with sides: 4 Area: 50"]);
+
+    let _ = fs::remove_dir_all(&temp_root);
+}
+
