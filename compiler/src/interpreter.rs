@@ -6,6 +6,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Int(i64),
+    Float(f64),
     Bool(bool),
     String(String),
     Struct {
@@ -19,6 +20,13 @@ impl Value {
     pub fn display_string(&self) -> String {
         match self {
             Value::Int(n) => n.to_string(),
+            Value::Float(f) => {
+                if f.fract() == 0.0 {
+                    format!("{:.1}", f)
+                } else {
+                    f.to_string()
+                }
+            }
             Value::Bool(b) => b.to_string(),
             Value::String(s) => s.clone(),
             Value::Void => "()".to_string(),
@@ -219,6 +227,7 @@ impl Interpreter {
         let span = expr.span;
         match &expr.expr {
             Expr::Int(n) => Ok(Value::Int(*n)),
+            Expr::Float(f) => Ok(Value::Float(*f)),
             Expr::Bool(b) => Ok(Value::Bool(*b)),
             Expr::String(s) => Ok(Value::String(s.clone())),
             Expr::Ident(name) => {
@@ -232,7 +241,8 @@ impl Interpreter {
                 let v = self.eval_expr(inner, env)?;
                 match v {
                     Value::Int(n) => Ok(Value::Int(-n)),
-                    _ => self.error("Cannot negate non-integer", span),
+                    Value::Float(f) => Ok(Value::Float(-f)),
+                    _ => self.error("Cannot negate non-numeric value", span),
                 }
             }
             Expr::UnaryOp(UnOp::Not, inner) => {
@@ -248,6 +258,9 @@ impl Interpreter {
                 match op {
                     BinOp::Add => match (l_val, r_val) {
                         (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a + b)),
+                        (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a + b)),
+                        (Value::Int(a), Value::Float(b)) => Ok(Value::Float(a as f64 + b)),
+                        (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a + b as f64)),
                         (Value::String(a), Value::String(b)) => {
                             Ok(Value::String(format!("{}{}", a, b)))
                         }
@@ -261,10 +274,16 @@ impl Interpreter {
                     },
                     BinOp::Sub => match (l_val, r_val) {
                         (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a - b)),
+                        (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a - b)),
+                        (Value::Int(a), Value::Float(b)) => Ok(Value::Float(a as f64 - b)),
+                        (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a - b as f64)),
                         _ => self.error("Invalid operand types for subtraction", span),
                     },
                     BinOp::Mul => match (l_val, r_val) {
                         (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a * b)),
+                        (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a * b)),
+                        (Value::Int(a), Value::Float(b)) => Ok(Value::Float(a as f64 * b)),
+                        (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a * b as f64)),
                         _ => self.error("Invalid operand types for multiplication", span),
                     },
                     BinOp::Div => match (l_val, r_val) {
@@ -275,22 +294,37 @@ impl Interpreter {
                                 Ok(Value::Int(a / b))
                             }
                         }
+                        (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a / b)),
+                        (Value::Int(a), Value::Float(b)) => Ok(Value::Float(a as f64 / b)),
+                        (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a / b as f64)),
                         _ => self.error("Invalid operand types for division", span),
                     },
                     BinOp::Gt => match (l_val, r_val) {
                         (Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a > b)),
+                        (Value::Float(a), Value::Float(b)) => Ok(Value::Bool(a > b)),
+                        (Value::Int(a), Value::Float(b)) => Ok(Value::Bool((a as f64) > b)),
+                        (Value::Float(a), Value::Int(b)) => Ok(Value::Bool(a > (b as f64))),
                         _ => self.error("Invalid operand types for '>'", span),
                     },
                     BinOp::Lt => match (l_val, r_val) {
                         (Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a < b)),
+                        (Value::Float(a), Value::Float(b)) => Ok(Value::Bool(a < b)),
+                        (Value::Int(a), Value::Float(b)) => Ok(Value::Bool((a as f64) < b)),
+                        (Value::Float(a), Value::Int(b)) => Ok(Value::Bool(a < (b as f64))),
                         _ => self.error("Invalid operand types for '<'", span),
                     },
                     BinOp::Gte => match (l_val, r_val) {
                         (Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a >= b)),
+                        (Value::Float(a), Value::Float(b)) => Ok(Value::Bool(a >= b)),
+                        (Value::Int(a), Value::Float(b)) => Ok(Value::Bool((a as f64) >= b)),
+                        (Value::Float(a), Value::Int(b)) => Ok(Value::Bool(a >= (b as f64))),
                         _ => self.error("Invalid operand types for '>='", span),
                     },
                     BinOp::Lte => match (l_val, r_val) {
                         (Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a <= b)),
+                        (Value::Float(a), Value::Float(b)) => Ok(Value::Bool(a <= b)),
+                        (Value::Int(a), Value::Float(b)) => Ok(Value::Bool((a as f64) <= b)),
+                        (Value::Float(a), Value::Int(b)) => Ok(Value::Bool(a <= (b as f64))),
                         _ => self.error("Invalid operand types for '<='", span),
                     },
                     BinOp::EqEq => Ok(Value::Bool(l_val == r_val)),
@@ -362,6 +396,202 @@ impl Interpreter {
                         }
                     }
                     return Ok(Value::Int(0));
+                }
+                // Phase 4: Extended stdlib in interpreter
+                if name == "math_sqrt" {
+                    if let Some(a) = args.first() {
+                        let v = self.eval_expr(a, env)?;
+                        let n = match v { Value::Int(i) => i as f64, Value::Float(f) => f, _ => 0.0 };
+                        return Ok(Value::Float(n.sqrt()));
+                    }
+                    return Ok(Value::Float(0.0));
+                }
+                if name == "math_floor" {
+                    if let Some(a) = args.first() {
+                        let v = self.eval_expr(a, env)?;
+                        let n = match v { Value::Int(i) => i as f64, Value::Float(f) => f, _ => 0.0 };
+                        return Ok(Value::Float(n.floor()));
+                    }
+                    return Ok(Value::Float(0.0));
+                }
+                if name == "math_ceil" {
+                    if let Some(a) = args.first() {
+                        let v = self.eval_expr(a, env)?;
+                        let n = match v { Value::Int(i) => i as f64, Value::Float(f) => f, _ => 0.0 };
+                        return Ok(Value::Float(n.ceil()));
+                    }
+                    return Ok(Value::Float(0.0));
+                }
+                if name == "math_round" {
+                    if let Some(a) = args.first() {
+                        let v = self.eval_expr(a, env)?;
+                        let n = match v { Value::Int(i) => i as f64, Value::Float(f) => f, _ => 0.0 };
+                        return Ok(Value::Float(n.round()));
+                    }
+                    return Ok(Value::Float(0.0));
+                }
+                if name == "file_read" {
+                    if let Some(a) = args.first() {
+                        let v = self.eval_expr(a, env)?;
+                        if let Value::String(path) = v {
+                            let content = std::fs::read_to_string(&path).unwrap_or_default();
+                            return Ok(Value::String(content));
+                        }
+                    }
+                    return Ok(Value::String(String::new()));
+                }
+                if name == "file_write" {
+                    if args.len() >= 2 {
+                        let path_v = self.eval_expr(&args[0], env)?;
+                        let data_v = self.eval_expr(&args[1], env)?;
+                        if let (Value::String(path), Value::String(data)) = (path_v, data_v) {
+                            let ok = std::fs::write(&path, &data).is_ok();
+                            return Ok(Value::Bool(ok));
+                        }
+                    }
+                    return Ok(Value::Bool(false));
+                }
+                if name == "file_exists" {
+                    if let Some(a) = args.first() {
+                        let v = self.eval_expr(a, env)?;
+                        if let Value::String(path) = v {
+                            return Ok(Value::Bool(std::path::Path::new(&path).exists()));
+                        }
+                    }
+                    return Ok(Value::Bool(false));
+                }
+                if name == "path_join" {
+                    if args.len() >= 2 {
+                        let a = self.eval_expr(&args[0], env)?;
+                        let b = self.eval_expr(&args[1], env)?;
+                        if let (Value::String(pa), Value::String(pb)) = (a, b) {
+                            let joined = std::path::Path::new(&pa).join(&pb);
+                            return Ok(Value::String(joined.to_string_lossy().into_owned()));
+                        }
+                    }
+                    return Ok(Value::String(String::new()));
+                }
+                if name == "path_ext" {
+                    if let Some(a) = args.first() {
+                        let v = self.eval_expr(a, env)?;
+                        if let Value::String(p) = v {
+                            let ext = std::path::Path::new(&p)
+                                .extension()
+                                .and_then(|e| e.to_str())
+                                .unwrap_or("")
+                                .to_string();
+                            return Ok(Value::String(ext));
+                        }
+                    }
+                    return Ok(Value::String(String::new()));
+                }
+                if name == "path_filename" {
+                    if let Some(a) = args.first() {
+                        let v = self.eval_expr(a, env)?;
+                        if let Value::String(p) = v {
+                            let filename = std::path::Path::new(&p)
+                                .file_name()
+                                .and_then(|f| f.to_str())
+                                .unwrap_or("")
+                                .to_string();
+                            return Ok(Value::String(filename));
+                        }
+                    }
+                    return Ok(Value::String(String::new()));
+                }
+                if name == "env_get" {
+                    if let Some(a) = args.first() {
+                        let v = self.eval_expr(a, env)?;
+                        if let Value::String(key) = v {
+                            let val = std::env::var(&key).unwrap_or_default();
+                            return Ok(Value::String(val));
+                        }
+                    }
+                    return Ok(Value::String(String::new()));
+                }
+                if name == "env_set" {
+                    if args.len() >= 2 {
+                        let k = self.eval_expr(&args[0], env)?;
+                        let v = self.eval_expr(&args[1], env)?;
+                        if let (Value::String(key), Value::String(val)) = (k, v) {
+                            std::env::set_var(&key, &val);
+                            return Ok(Value::Bool(true));
+                        }
+                    }
+                    return Ok(Value::Bool(false));
+                }
+                if name == "process_exit" {
+                    if let Some(a) = args.first() {
+                        let v = self.eval_expr(a, env)?;
+                        if let Value::Int(code) = v {
+                            std::process::exit(code as i32);
+                        }
+                    }
+                    std::process::exit(0);
+                }
+                if name == "time_now" {
+                    use std::time::{SystemTime, UNIX_EPOCH};
+                    let ts = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+                    return Ok(Value::Int(ts as i64));
+                }
+                if name == "time_sleep" {
+                    if let Some(a) = args.first() {
+                        let v = self.eval_expr(a, env)?;
+                        if let Value::Int(ms) = v {
+                            std::thread::sleep(std::time::Duration::from_millis(ms.max(0) as u64));
+                        }
+                    }
+                    return Ok(Value::Void);
+                }
+                if name == "str_to_int" {
+                    if let Some(a) = args.first() {
+                        let v = self.eval_expr(a, env)?;
+                        if let Value::String(s) = v {
+                            let n: i64 = s.trim().parse().unwrap_or(0);
+                            return Ok(Value::Int(n));
+                        }
+                    }
+                    return Ok(Value::Int(0));
+                }
+                if name == "str_to_float" {
+                    if let Some(a) = args.first() {
+                        let v = self.eval_expr(a, env)?;
+                        if let Value::String(s) = v {
+                            let f: f64 = s.trim().parse().unwrap_or(0.0);
+                            return Ok(Value::Float(f));
+                        }
+                    }
+                    return Ok(Value::Float(0.0));
+                }
+                if name == "str_contains" {
+                    if args.len() >= 2 {
+                        let h = self.eval_expr(&args[0], env)?;
+                        let n = self.eval_expr(&args[1], env)?;
+                        if let (Value::String(haystack), Value::String(needle)) = (h, n) {
+                            return Ok(Value::Bool(haystack.contains(needle.as_str())));
+                        }
+                    }
+                    return Ok(Value::Bool(false));
+                }
+                if name == "str_starts_with" {
+                    if args.len() >= 2 {
+                        let s = self.eval_expr(&args[0], env)?;
+                        let p = self.eval_expr(&args[1], env)?;
+                        if let (Value::String(s), Value::String(prefix)) = (s, p) {
+                            return Ok(Value::Bool(s.starts_with(prefix.as_str())));
+                        }
+                    }
+                    return Ok(Value::Bool(false));
+                }
+                if name == "str_ends_with" {
+                    if args.len() >= 2 {
+                        let s = self.eval_expr(&args[0], env)?;
+                        let suf = self.eval_expr(&args[1], env)?;
+                        if let (Value::String(s), Value::String(suffix)) = (s, suf) {
+                            return Ok(Value::Bool(s.ends_with(suffix.as_str())));
+                        }
+                    }
+                    return Ok(Value::Bool(false));
                 }
                 if name == "input" {
                     // In non-interactive test/interpreter mode return a placeholder or read stdin
@@ -534,6 +764,9 @@ func Main(): [
     #[test]
     fn test_interpreter_adult_branch() {
         let src = r#"
+@blueprint import Blueprint
+Blueprint.Setup("Adult Test", true)
+
 defstruct Profile [
     name: string,
     age: int,

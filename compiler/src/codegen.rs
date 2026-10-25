@@ -25,6 +25,27 @@ impl CodeGen {
         out.push_str("#include <windows.h>\n");
         out.push_str("#endif\n\n");
 
+        // Phase 3: C FFI — emit user-specified includes
+        for inc in &program.c_includes {
+            if inc.header.starts_with('<') || inc.header.starts_with('"') {
+                out.push_str(&format!("#include {}\n", inc.header));
+            } else {
+                out.push_str(&format!("#include <{}>\n", inc.header));
+            }
+        }
+        if !program.c_includes.is_empty() {
+            out.push('\n');
+        }
+
+        // Phase 3: C FFI — emit extern function declarations
+        if !program.c_externs.is_empty() {
+            out.push_str("/* C FFI extern declarations */\n");
+            for ext in &program.c_externs {
+                out.push_str(&format!("extern {};\n", ext.signature));
+            }
+            out.push('\n');
+        }
+
         // ARC (Automatic Reference Counting) Memory Model
         out.push_str("/* ========================================================================= */\n");
         out.push_str("/* ARC (Automatic Reference Counting) Memory Model                           */\n");
@@ -74,6 +95,12 @@ impl CodeGen {
         out.push_str("    return bl_arc_str(buf);\n");
         out.push_str("}\n\n");
 
+        out.push_str("static char* bl_float_to_str(double val) {\n");
+        out.push_str("    char buf[64];\n");
+        out.push_str("    snprintf(buf, sizeof(buf), \"%g\", val);\n");
+        out.push_str("    return bl_arc_str(buf);\n");
+        out.push_str("}\n\n");
+
         out.push_str("static char* bl_bool_to_str(bool val) {\n");
         out.push_str("    return bl_arc_str(val ? \"true\" : \"false\");\n");
         out.push_str("}\n\n");
@@ -84,6 +111,8 @@ impl CodeGen {
         out.push_str("    int: bl_int_to_str, \\\n");
         out.push_str("    long: bl_int_to_str, \\\n");
         out.push_str("    long long: bl_int_to_str, \\\n");
+        out.push_str("    float: bl_float_to_str, \\\n");
+        out.push_str("    double: bl_float_to_str, \\\n");
         out.push_str("    bool: bl_bool_to_str, \\\n");
         out.push_str("    default: bl_pass_str \\\n");
         out.push_str(")(x)\n\n");
@@ -109,6 +138,10 @@ impl CodeGen {
 
         out.push_str("static void bl_output_int(int64_t n) {\n");
         out.push_str("    printf(\"%lld\\n\", (long long)n);\n");
+        out.push_str("}\n\n");
+
+        out.push_str("static void bl_output_float(double f) {\n");
+        out.push_str("    printf(\"%g\\n\", f);\n");
         out.push_str("}\n\n");
 
         out.push_str("static char* bl_input(const char* prompt) {\n");
@@ -150,6 +183,166 @@ impl CodeGen {
         out.push_str("static int64_t bl_math_max(int64_t a, int64_t b) {\n");
         out.push_str("    return a > b ? a : b;\n");
         out.push_str("}\n\n");
+
+        // =====================================================================
+        // Phase 4: Extended Standard Library — File I/O, Path, Env, Process, Time
+        // =====================================================================
+        out.push_str("/* ========================================================================= */\n");
+        out.push_str("/* Extended Standard Library (Phase 4)                                     */\n");
+        out.push_str("/* ========================================================================= */\n\n");
+        out.push_str("#include <time.h>\n\n");
+        // Platform includes for sleep
+        out.push_str("#ifdef _WIN32\n");
+        out.push_str("#include <windows.h>\n");
+        out.push_str("#else\n");
+        out.push_str("#include <unistd.h>\n");
+        out.push_str("#endif\n\n");
+
+        // file_read(path) -> string
+        out.push_str("static const char* bl_file_read(const char* path) {\n");
+        out.push_str("    if (!path) return bl_arc_str(\"\");\n");
+        out.push_str("    FILE* f = fopen(path, \"rb\");\n");
+        out.push_str("    if (!f) return bl_arc_str(\"\");\n");
+        out.push_str("    fseek(f, 0, SEEK_END);\n");
+        out.push_str("    long sz = ftell(f);\n");
+        out.push_str("    fseek(f, 0, SEEK_SET);\n");
+        out.push_str("    if (sz <= 0) { fclose(f); return bl_arc_str(\"\"); }\n");
+        out.push_str("    char* buf = (char*)bl_arc_alloc((size_t)sz + 1);\n");
+        out.push_str("    size_t read_n = fread(buf, 1, (size_t)sz, f);\n");
+        out.push_str("    buf[read_n] = '\\0';\n");
+        out.push_str("    fclose(f);\n");
+        out.push_str("    return buf;\n");
+        out.push_str("}\n\n");
+
+        // file_write(path, data) -> bool
+        out.push_str("static bool bl_file_write(const char* path, const char* data) {\n");
+        out.push_str("    if (!path || !data) return false;\n");
+        out.push_str("    FILE* f = fopen(path, \"wb\");\n");
+        out.push_str("    if (!f) return false;\n");
+        out.push_str("    fputs(data, f);\n");
+        out.push_str("    fclose(f);\n");
+        out.push_str("    return true;\n");
+        out.push_str("}\n\n");
+
+        // file_exists(path) -> bool
+        out.push_str("static bool bl_file_exists(const char* path) {\n");
+        out.push_str("    if (!path) return false;\n");
+        out.push_str("    FILE* f = fopen(path, \"rb\");\n");
+        out.push_str("    if (f) { fclose(f); return true; }\n");
+        out.push_str("    return false;\n");
+        out.push_str("}\n\n");
+
+        // path_join(a, b) -> string
+        out.push_str("static const char* bl_path_join(const char* a, const char* b) {\n");
+        out.push_str("    if (!a) a = \"\";\n");
+        out.push_str("    if (!b) b = \"\";\n");
+        out.push_str("    size_t la = strlen(a), lb = strlen(b);\n");
+        out.push_str("    char* res = (char*)bl_arc_alloc(la + lb + 2);\n");
+        out.push_str("    memcpy(res, a, la);\n");
+        out.push_str("    if (la > 0 && a[la-1] != '/' && a[la-1] != '\\\\') res[la++] = '/';\n");
+        out.push_str("    memcpy(res + la, b, lb + 1);\n");
+        out.push_str("    return res;\n");
+        out.push_str("}\n\n");
+
+        // path_ext(p) -> string  (extension without dot)
+        out.push_str("static const char* bl_path_ext(const char* p) {\n");
+        out.push_str("    if (!p) return bl_arc_str(\"\");\n");
+        out.push_str("    const char* dot = strrchr(p, '.');\n");
+        out.push_str("    const char* slash = strrchr(p, '/');\n");
+        out.push_str("    const char* bslash = strrchr(p, '\\\\');\n");
+        out.push_str("    const char* sep = slash > bslash ? slash : bslash;\n");
+        out.push_str("    if (!dot || (sep && dot < sep)) return bl_arc_str(\"\");\n");
+        out.push_str("    return bl_arc_str(dot + 1);\n");
+        out.push_str("}\n\n");
+
+        // path_filename(p) -> string  (basename with extension)
+        out.push_str("static const char* bl_path_filename(const char* p) {\n");
+        out.push_str("    if (!p) return bl_arc_str(\"\");\n");
+        out.push_str("    const char* slash = strrchr(p, '/');\n");
+        out.push_str("    const char* bslash = strrchr(p, '\\\\');\n");
+        out.push_str("    const char* sep = slash > bslash ? slash : bslash;\n");
+        out.push_str("    return bl_arc_str(sep ? sep + 1 : p);\n");
+        out.push_str("}\n\n");
+
+        // env_get(key) -> string
+        out.push_str("static const char* bl_env_get(const char* key) {\n");
+        out.push_str("    if (!key) return bl_arc_str(\"\");\n");
+        out.push_str("    const char* val = getenv(key);\n");
+        out.push_str("    return bl_arc_str(val ? val : \"\");\n");
+        out.push_str("}\n\n");
+
+        // env_set(key, val) -> bool
+        out.push_str("static bool bl_env_set(const char* key, const char* val) {\n");
+        out.push_str("    if (!key) return false;\n");
+        out.push_str("#ifdef _WIN32\n");
+        out.push_str("    return SetEnvironmentVariableA(key, val) != 0;\n");
+        out.push_str("#else\n");
+        out.push_str("    return setenv(key, val ? val : \"\", 1) == 0;\n");
+        out.push_str("#endif\n");
+        out.push_str("}\n\n");
+
+        // process_exit(code)
+        out.push_str("static void bl_process_exit(int64_t code) {\n");
+        out.push_str("    exit((int)code);\n");
+        out.push_str("}\n\n");
+
+        // time_now() -> int  (Unix epoch seconds)
+        out.push_str("static int64_t bl_time_now(void) {\n");
+        out.push_str("    return (int64_t)time(NULL);\n");
+        out.push_str("}\n\n");
+
+        // time_sleep(ms)
+        out.push_str("static void bl_time_sleep(int64_t ms) {\n");
+        out.push_str("#ifdef _WIN32\n");
+        out.push_str("    Sleep((DWORD)(ms < 0 ? 0 : ms));\n");
+        out.push_str("#else\n");
+        out.push_str("    if (ms > 0) usleep((useconds_t)(ms * 1000));\n");
+        out.push_str("#endif\n");
+        out.push_str("}\n\n");
+
+        // str_to_int(s) -> int
+        out.push_str("static int64_t bl_str_to_int(const char* s) {\n");
+        out.push_str("    if (!s) return 0;\n");
+        out.push_str("    return (int64_t)strtoll(s, NULL, 10);\n");
+        out.push_str("}\n\n");
+
+        // str_to_float(s) -> double
+        out.push_str("static double bl_str_to_float(const char* s) {\n");
+        out.push_str("    if (!s) return 0.0;\n");
+        out.push_str("    return strtod(s, NULL);\n");
+        out.push_str("}\n\n");
+
+        // str_contains(haystack, needle) -> bool
+        out.push_str("static bool bl_str_contains(const char* h, const char* n) {\n");
+        out.push_str("    if (!h || !n) return false;\n");
+        out.push_str("    return strstr(h, n) != NULL;\n");
+        out.push_str("}\n\n");
+
+        // str_starts_with(s, prefix) -> bool
+        out.push_str("static bool bl_str_starts_with(const char* s, const char* p) {\n");
+        out.push_str("    if (!s || !p) return false;\n");
+        out.push_str("    size_t pl = strlen(p);\n");
+        out.push_str("    return strncmp(s, p, pl) == 0;\n");
+        out.push_str("}\n\n");
+
+        // str_ends_with(s, suffix) -> bool
+        out.push_str("static bool bl_str_ends_with(const char* s, const char* suf) {\n");
+        out.push_str("    if (!s || !suf) return false;\n");
+        out.push_str("    size_t sl = strlen(s), sufl = strlen(suf);\n");
+        out.push_str("    return sl >= sufl && strcmp(s + sl - sufl, suf) == 0;\n");
+        out.push_str("}\n\n");
+
+        // math_sqrt(x) -> double
+        out.push_str("static double bl_math_sqrt(double x) { return sqrt(x); }\n\n");
+
+        // math_floor(x) -> double
+        out.push_str("static double bl_math_floor(double x) { return floor(x); }\n\n");
+
+        // math_ceil(x) -> double
+        out.push_str("static double bl_math_ceil(double x) { return ceil(x); }\n\n");
+
+        // math_round(x) -> double
+        out.push_str("static double bl_math_round(double x) { return round(x); }\n\n");
 
         // 2D Graphics Library Runtime
         out.push_str("/* ========================================================================= */\n");
@@ -359,6 +552,16 @@ impl CodeGen {
     fn c_type(ty: &Type) -> String {
         match ty {
             Type::Int => "int64_t".to_string(),
+            Type::I8 => "int8_t".to_string(),
+            Type::I16 => "int16_t".to_string(),
+            Type::I32 => "int32_t".to_string(),
+            Type::I64 => "int64_t".to_string(),
+            Type::U8 => "uint8_t".to_string(),
+            Type::U16 => "uint16_t".to_string(),
+            Type::U32 => "uint32_t".to_string(),
+            Type::U64 => "uint64_t".to_string(),
+            Type::F32 => "float".to_string(),
+            Type::F64 => "double".to_string(),
             Type::Bool => "bool".to_string(),
             Type::String => "const char*".to_string(),
             Type::Void => "void".to_string(),
@@ -369,33 +572,88 @@ impl CodeGen {
     fn infer_c_type(expr: &Expr, program: &Program) -> String {
         match expr {
             Expr::Int(_) => "int64_t".to_string(),
+            Expr::Float(_) => "double".to_string(),
             Expr::Bool(_) => "bool".to_string(),
             Expr::String(_) => "const char*".to_string(),
             Expr::StructInit(name, _) => name.clone(),
             Expr::BinaryOp(_, BinOp::Add, _) => "const char*".to_string(),
             Expr::BinaryOp(_, BinOp::Gt | BinOp::Lt | BinOp::Gte | BinOp::Lte | BinOp::EqEq | BinOp::Neq | BinOp::And | BinOp::Or, _) => "bool".to_string(),
-            Expr::BinaryOp(_, _, _) => "int64_t".to_string(),
-            Expr::UnaryOp(UnOp::Not, _) => "bool".to_string(),
-            Expr::UnaryOp(UnOp::Neg, _) => "int64_t".to_string(),
-            Expr::Call(name, _) => {
-                if name == "str_len" || name.starts_with("math_") {
-                    "int64_t".to_string()
-                } else if name == "window_open" || name == "window_should_close" || name == "is_key_down" {
-                    "bool".to_string()
-                } else if name == "input" {
-                    "const char*".to_string()
+            Expr::BinaryOp(l, _, r) => {
+                if Self::is_float_expr(&l.expr) || Self::is_float_expr(&r.expr) {
+                    "double".to_string()
                 } else {
-                    for item in &program.items {
-                        if let Item::Func(f) = item {
-                            if &f.name == name {
-                                if let Some(ref ty) = f.return_ty {
-                                    return Self::c_type(ty);
-                                }
+                    "int64_t".to_string()
+                }
+            }
+            Expr::UnaryOp(UnOp::Not, _) => "bool".to_string(),
+            Expr::UnaryOp(UnOp::Neg, inner) => {
+                if Self::is_float_expr(&inner.expr) {
+                    "double".to_string()
+                } else {
+                    "int64_t".to_string()
+                }
+            }
+            Expr::Call(name, _) => {
+                if name == "str_len" {
+                    return "int64_t".to_string();
+                }
+                if name.starts_with("math_sqrt") || name.starts_with("math_floor")
+                    || name.starts_with("math_ceil") || name.starts_with("math_round")
+                    || name == "str_to_float"
+                {
+                    return "double".to_string();
+                }
+                if name.starts_with("math_") {
+                    return "int64_t".to_string();
+                }
+                if name == "window_open" || name == "window_should_close" || name == "is_key_down"
+                    || name == "file_write" || name == "file_exists" || name == "env_set"
+                    || name == "str_contains" || name == "str_starts_with" || name == "str_ends_with"
+                {
+                    return "bool".to_string();
+                }
+                if name == "input" || name == "file_read" || name == "path_join"
+                    || name == "path_ext" || name == "path_filename"
+                    || name == "env_get" || name == "str_len"
+                {
+                    return "const char*".to_string();
+                }
+                if name == "time_now" || name == "str_to_int" {
+                    return "int64_t".to_string();
+                }
+                // Look up in Blueprint functions
+                for item in &program.items {
+                    if let Item::Func(f) = item {
+                        if &f.name == name {
+                            if let Some(ref ty) = f.return_ty {
+                                return Self::c_type(ty);
                             }
                         }
                     }
-                    "const char*".to_string()
                 }
+                // Look up in C extern declarations — parse return type from signature
+                for ext in &program.c_externs {
+                    let sig = ext.signature.trim();
+                    if let Some(paren_pos) = sig.find('(') {
+                        let before = sig[..paren_pos].trim();
+                        if let Some(func_name) = before.split_whitespace().last() {
+                            if func_name == name {
+                                // Return type is everything before the function name
+                                let ret_part = before[..before.rfind(func_name).unwrap_or(0)].trim();
+                                return match ret_part {
+                                    "double" => "double".to_string(),
+                                    "float" => "float".to_string(),
+                                    "int" | "int32_t" => "int32_t".to_string(),
+                                    "long" | "int64_t" => "int64_t".to_string(),
+                                    "bool" => "bool".to_string(),
+                                    "void" => "void".to_string(),
+                                    _ => "const char*".to_string(),
+                                };
+                            }
+                        }
+                    }
+                }
+                "const char*".to_string()
             }
             Expr::MethodCall(_, method, _) => {
                 for item in &program.items {
@@ -413,12 +671,11 @@ impl CodeGen {
         }
     }
 
-    fn is_int_expr(expr: &Expr) -> bool {
+    fn is_float_expr(expr: &Expr) -> bool {
         match expr {
-            Expr::Int(_) => true,
-            Expr::BinaryOp(_, BinOp::Sub | BinOp::Mul | BinOp::Div, _) => true,
-            Expr::UnaryOp(UnOp::Neg, _) => true,
-            Expr::Call(name, _) if name.starts_with("math_") || name == "str_len" => true,
+            Expr::Float(_) => true,
+            Expr::BinaryOp(l, _, r) => Self::is_float_expr(&l.expr) || Self::is_float_expr(&r.expr),
+            Expr::UnaryOp(_, operand) => Self::is_float_expr(&operand.expr),
             _ => false,
         }
     }
@@ -480,6 +737,13 @@ impl CodeGen {
     fn emit_expr(expr: &Expr) -> String {
         match expr {
             Expr::Int(n) => format!("{}LL", n),
+            Expr::Float(f) => {
+                if f.fract() == 0.0 {
+                    format!("{:.1}", f)
+                } else {
+                    format!("{}", f)
+                }
+            }
             Expr::Bool(b) => if *b { "true".to_string() } else { "false".to_string() },
             Expr::String(s) => {
                 let escaped = s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n");
@@ -518,11 +782,7 @@ impl CodeGen {
                 if name == "output" {
                     if let Some(first_arg) = args.first() {
                         let arg_code = Self::emit_expr(&first_arg.expr);
-                        if Self::is_int_expr(&first_arg.expr) {
-                            return format!("bl_output_int({})", arg_code);
-                        } else {
-                            return format!("bl_output_str({})", arg_code);
-                        }
+                        return format!("bl_output_str(bl_to_str({}))", arg_code);
                     }
                     return "bl_output_str(\"\")".to_string();
                 }
@@ -560,6 +820,67 @@ impl CodeGen {
                     let a = Self::emit_expr(&args[0].expr);
                     let b = Self::emit_expr(&args[1].expr);
                     return format!("bl_math_max({}, {})", a, b);
+                }
+                // Phase 4: Extended stdlib
+                if name == "math_sqrt" {
+                    return format!("bl_math_sqrt({})", Self::emit_expr(&args[0].expr));
+                }
+                if name == "math_floor" {
+                    return format!("bl_math_floor({})", Self::emit_expr(&args[0].expr));
+                }
+                if name == "math_ceil" {
+                    return format!("bl_math_ceil({})", Self::emit_expr(&args[0].expr));
+                }
+                if name == "math_round" {
+                    return format!("bl_math_round({})", Self::emit_expr(&args[0].expr));
+                }
+                if name == "file_read" {
+                    return format!("bl_file_read({})", Self::emit_expr(&args[0].expr));
+                }
+                if name == "file_write" {
+                    return format!("bl_file_write({}, {})", Self::emit_expr(&args[0].expr), Self::emit_expr(&args[1].expr));
+                }
+                if name == "file_exists" {
+                    return format!("bl_file_exists({})", Self::emit_expr(&args[0].expr));
+                }
+                if name == "path_join" {
+                    return format!("bl_path_join({}, {})", Self::emit_expr(&args[0].expr), Self::emit_expr(&args[1].expr));
+                }
+                if name == "path_ext" {
+                    return format!("bl_path_ext({})", Self::emit_expr(&args[0].expr));
+                }
+                if name == "path_filename" {
+                    return format!("bl_path_filename({})", Self::emit_expr(&args[0].expr));
+                }
+                if name == "env_get" {
+                    return format!("bl_env_get({})", Self::emit_expr(&args[0].expr));
+                }
+                if name == "env_set" {
+                    return format!("bl_env_set({}, {})", Self::emit_expr(&args[0].expr), Self::emit_expr(&args[1].expr));
+                }
+                if name == "process_exit" {
+                    return format!("bl_process_exit({})", Self::emit_expr(&args[0].expr));
+                }
+                if name == "time_now" {
+                    return "bl_time_now()".to_string();
+                }
+                if name == "time_sleep" {
+                    return format!("bl_time_sleep({})", Self::emit_expr(&args[0].expr));
+                }
+                if name == "str_to_int" {
+                    return format!("bl_str_to_int({})", Self::emit_expr(&args[0].expr));
+                }
+                if name == "str_to_float" {
+                    return format!("bl_str_to_float({})", Self::emit_expr(&args[0].expr));
+                }
+                if name == "str_contains" {
+                    return format!("bl_str_contains({}, {})", Self::emit_expr(&args[0].expr), Self::emit_expr(&args[1].expr));
+                }
+                if name == "str_starts_with" {
+                    return format!("bl_str_starts_with({}, {})", Self::emit_expr(&args[0].expr), Self::emit_expr(&args[1].expr));
+                }
+                if name == "str_ends_with" {
+                    return format!("bl_str_ends_with({}, {})", Self::emit_expr(&args[0].expr), Self::emit_expr(&args[1].expr));
                 }
                 let rendered_args = args.iter().map(|a| Self::emit_expr(&a.expr)).collect::<Vec<_>>().join(", ");
                 format!("{}({})", name, rendered_args)
@@ -622,40 +943,65 @@ impl CodeGen {
             let _ = fs::create_dir_all(parent);
         }
 
-        // Prefer gcc or clang installed on system
-        let mut cmd = Command::new("gcc");
+        // Determine output path — on Linux strip .exe if present, add nothing
+        let final_output = if cfg!(target_os = "windows") {
+            // Windows: keep as-is (caller may pass .exe already)
+            output_exe.to_path_buf()
+        } else {
+            // Linux/macOS: strip .exe extension if present
+            if output_exe.extension().map_or(false, |e| e == "exe") {
+                output_exe.with_extension("")
+            } else {
+                output_exe.to_path_buf()
+            }
+        };
+
+        // Collect extra linker libraries declared via C.Link(...)
+        let mut extra_libs: Vec<String> = Vec::new();
+        for cl in &program.c_links {
+            extra_libs.push(cl.lib.clone());
+        }
+
+        // Prefer gcc, fall back to cc
+        let compiler = if cfg!(target_os = "windows") { "gcc" } else { "cc" };
+        let mut cmd = Command::new(compiler);
         cmd.arg("-O2")
             .arg("-std=c11")
             .arg("-o")
-            .arg(output_exe)
+            .arg(&final_output)
             .arg(&c_file);
 
-        #[cfg(target_os = "windows")]
-        {
+        if cfg!(target_os = "windows") {
             cmd.arg("-lgdi32").arg("-luser32").arg("-lm");
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            cmd.arg("-lm");
+        } else {
+            cmd.arg("-lm").arg("-lpthread");
         }
 
-        let status = cmd.status().map_err(|e| {
+        for lib in &extra_libs {
+            cmd.arg(format!("-l{}", lib));
+        }
+
+        let output = cmd.output().map_err(|e| {
             CompileError::new(&format!(
-                "Failed to invoke native compiler 'gcc'. Make sure GCC/Clang is installed: {}",
-                e
+                "Failed to invoke native compiler '{}'. Make sure GCC/Clang is installed: {}",
+                compiler, e
             ))
         })?;
 
         let _ = fs::remove_dir_all(&temp_dir);
 
-        if !status.success() {
-            return Err(CompileError::new("Native compiler (gcc) reported build errors"));
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(CompileError::new(&format!(
+                "Native compiler ({}) reported build errors:\n{}",
+                compiler, stderr
+            )));
         }
 
-        if !output_exe.exists() {
+        if !final_output.exists() {
             return Err(CompileError::new("Executable binary was not produced"));
         }
 
-        Ok(output_exe.to_path_buf())
+        Ok(final_output)
     }
 }

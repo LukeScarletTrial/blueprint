@@ -1,10 +1,37 @@
 use crate::lexer::Span;
 
+/// A C FFI declaration: extern function signature
+#[derive(Debug, Clone, PartialEq)]
+pub struct CExtern {
+    pub signature: String, // Raw C signature string, e.g. "double sqrt(double x)"
+    pub span: Span,
+}
+
+/// A C FFI include directive: C.Include("header.h")
+#[derive(Debug, Clone, PartialEq)]
+pub struct CInclude {
+    pub header: String,
+    pub span: Span,
+}
+
+/// A C FFI link directive: C.Link("libname")
+#[derive(Debug, Clone, PartialEq)]
+pub struct CLink {
+    pub lib: String,
+    pub span: Span,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program {
     pub annotations: Vec<Annotation>,
     pub items: Vec<Item>,
     pub span: Span,
+    /// C FFI includes collected at parse time
+    pub c_includes: Vec<CInclude>,
+    /// C FFI link libraries
+    pub c_links: Vec<CLink>,
+    /// C FFI extern declarations
+    pub c_externs: Vec<CExtern>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -104,6 +131,7 @@ pub struct SpannedExpr {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Int(i64),
+    Float(f64),
     Bool(bool),
     String(String),
     Ident(String),
@@ -139,17 +167,62 @@ pub enum BinOp {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Type {
-    Int,
+    Int,      // default/legacy 64-bit integer
+    I8,
+    I16,
+    I32,
+    I64,
+    U8,
+    U16,
+    U32,
+    U64,
+    F32,
+    F64,
     Bool,
     String,
     Void,
     Custom(String),
 }
 
+impl Type {
+    pub fn is_integer(&self) -> bool {
+        matches!(
+            self,
+            Type::Int
+                | Type::I8
+                | Type::I16
+                | Type::I32
+                | Type::I64
+                | Type::U8
+                | Type::U16
+                | Type::U32
+                | Type::U64
+        )
+    }
+
+    pub fn is_float(&self) -> bool {
+        matches!(self, Type::F32 | Type::F64)
+    }
+
+    pub fn is_numeric(&self) -> bool {
+        self.is_integer() || self.is_float()
+    }
+}
+
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Int => write!(f, "int"),
+            Type::I8 => write!(f, "i8"),
+            Type::I16 => write!(f, "i16"),
+            Type::I32 => write!(f, "i32"),
+            Type::I64 => write!(f, "i64"),
+            Type::U8 => write!(f, "u8"),
+            Type::U16 => write!(f, "u16"),
+            Type::U32 => write!(f, "u32"),
+            Type::U64 => write!(f, "u64"),
+            Type::F32 => write!(f, "f32"),
+            Type::F64 => write!(f, "f64"),
             Type::Bool => write!(f, "bool"),
             Type::String => write!(f, "string"),
             Type::Void => write!(f, "void"),

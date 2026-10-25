@@ -119,6 +119,9 @@ impl<'a> Parser<'a> {
         let start_span = self.current_span();
         let mut annotations = Vec::new();
         let mut items = Vec::new();
+        let mut c_includes: Vec<CInclude> = Vec::new();
+        let mut c_links: Vec<CLink> = Vec::new();
+        let mut c_externs: Vec<CExtern> = Vec::new();
 
         while !self.is_eof() {
             match self.peek().map(|t| &t.token) {
@@ -150,6 +153,35 @@ impl<'a> Parser<'a> {
                     let stmt = self.parse_stmt()?;
                     items.push(Item::Stmt(stmt));
                 }
+                Some(Token::Ident(name)) if name == "C" => {
+                    // Phase 3: C FFI calls at top-level: C.Include(...) / C.Link(...) / C.Extern(...)
+                    if let Some(next) = self.peek_next() {
+                        if next.token == Token::Dot {
+                            let span = self.current_span();
+                            self.advance(); // consume 'C'
+                            self.advance(); // consume '.'
+                            let (method, _) = self.expect_ident()?;
+                            self.expect(&Token::LParen)?;
+                            let arg = match self.advance() {
+                                Some(tok) => match tok.token {
+                                    Token::String(s) => s,
+                                    _ => return self.error("Expected string argument", tok.span),
+                                },
+                                None => return self.error("Expected string argument", span),
+                            };
+                            self.expect(&Token::RParen)?;
+                            match method.as_str() {
+                                "Include" => c_includes.push(CInclude { header: arg, span }),
+                                "Link" => c_links.push(CLink { lib: arg, span }),
+                                "Extern" => c_externs.push(CExtern { signature: arg, span }),
+                                _ => return self.error(format!("Unknown C FFI method '{}'", method), span),
+                            }
+                            continue;
+                        }
+                    }
+                    let stmt = self.parse_stmt()?;
+                    items.push(Item::Stmt(stmt));
+                }
                 _ => {
                     let stmt = self.parse_stmt()?;
                     items.push(Item::Stmt(stmt));
@@ -164,6 +196,9 @@ impl<'a> Parser<'a> {
             annotations,
             items,
             span,
+            c_includes,
+            c_links,
+            c_externs,
         })
     }
 
@@ -334,6 +369,16 @@ impl<'a> Parser<'a> {
         let (name, _span) = self.expect_ident()?;
         match name.as_str() {
             "int" => Ok(Type::Int),
+            "i8" => Ok(Type::I8),
+            "i16" => Ok(Type::I16),
+            "i32" => Ok(Type::I32),
+            "i64" => Ok(Type::I64),
+            "u8" => Ok(Type::U8),
+            "u16" => Ok(Type::U16),
+            "u32" => Ok(Type::U32),
+            "u64" => Ok(Type::U64),
+            "f32" => Ok(Type::F32),
+            "f64" => Ok(Type::F64),
             "bool" => Ok(Type::Bool),
             "string" | "str" => Ok(Type::String),
             "void" => Ok(Type::Void),
@@ -540,6 +585,13 @@ impl<'a> Parser<'a> {
         };
 
         match tok.token {
+            Token::Float(f) => {
+                self.advance();
+                Ok(SpannedExpr {
+                    expr: Expr::Float(f),
+                    span: tok.span,
+                })
+            }
             Token::Int(n) => {
                 self.advance();
                 Ok(SpannedExpr {

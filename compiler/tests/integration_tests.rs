@@ -79,6 +79,9 @@ func Main(): [
 #[test]
 fn test_cli_and_semantic_error_reporting() {
     let invalid_type_src = r#"
+@blueprint import Blueprint
+Blueprint.Setup("Test App", true)
+
 func Main(): [
     def x: int = "string_value"
 ]
@@ -92,6 +95,9 @@ func Main(): [
 #[test]
 fn test_undefined_function_error() {
     let src = r#"
+@blueprint import Blueprint
+Blueprint.Setup("Test App", true)
+
 func Main(): [
     UnknownFunc()
 ]
@@ -184,7 +190,8 @@ func Main(): [
     output("Graphics & Math OK: " + "Pow=" + "27")
 ]
 "#;
-    let out_exe = std::env::temp_dir().join(format!("bl_graphics_test_{}.exe", std::process::id()));
+    let out_exe =
+        std::env::temp_dir().join(format!("bl_graphics_test_{}.exe", std::process::id()));
     let res = build_executable(src, &out_exe);
     assert!(res.is_ok(), "GCC compilation failed: {:?}", res.err());
 
@@ -205,7 +212,6 @@ fn test_component_module_import() {
     let funcs_dir = mod_dir.join("functions");
     fs::create_dir_all(&funcs_dir).expect("create mod dirs");
 
-    // package.bls
     let package_bls = r#"{
         "name": "shapes",
         "version": "1.0.0",
@@ -213,7 +219,6 @@ fn test_component_module_import() {
     }"#;
     fs::write(mod_dir.join("package.bls"), package_bls).expect("write package.bls");
 
-    // package.bl
     let package_bl = r#"
 defstruct ShapeInfo [
     sides: int
@@ -225,7 +230,6 @@ func DescribeShape(s: ShapeInfo): str [
 "#;
     fs::write(mod_dir.join("package.bl"), package_bl).expect("write package.bl");
 
-    // functions/calc_area.bl
     let calc_area_bl = r#"
 func calc_area(w: int, h: int): int [
     return w * h
@@ -233,10 +237,10 @@ func calc_area(w: int, h: int): int [
 "#;
     fs::write(funcs_dir.join("calc_area.bl"), calc_area_bl).expect("write calc_area.bl");
 
-    // Main application code importing modules/shapes
     let main_src = r#"
 @blueprint import Blueprint
 @blueprint import modules/shapes
+Blueprint.Setup("Shapes Test", true)
 
 func Main(): [
     def area = calc_area(5, 10)
@@ -263,7 +267,6 @@ fn test_compiled_blm_module_import() {
     let modules_dir = temp_root.join("modules");
     fs::create_dir_all(&modules_dir).expect("create modules dir");
 
-    // Create a standalone precompiled .blm file (vector.blm)
     let blm_content = r#"// Blueprint Compiled Module: vector
 defstruct Vector2 [
     x: int,
@@ -279,6 +282,7 @@ func vector_add(a: Vector2, b: Vector2): Vector2 [
     let main_src = r#"
 @blueprint import Blueprint
 @blueprint import modules/vector
+Blueprint.Setup("Vector Test", true)
 
 func Main(): [
     def v1 = Vector2[10, 20]
@@ -296,4 +300,225 @@ func Main(): [
     let _ = fs::remove_dir_all(&temp_root);
 }
 
+// =============================================================================
+// Phase 1: Numeric Types & Float Literals
+// =============================================================================
 
+#[test]
+fn test_float_literals_and_arithmetic() {
+    let src = r#"
+@blueprint import Blueprint
+Blueprint.Setup("Float Test", true)
+
+func Main(): [
+    def pi = 3.14159
+    def tau = pi * 2.0
+    output(pi)
+    output(tau)
+]
+"#;
+    let (_, output) = run(src).expect("Float test failed");
+    assert!(
+        output[0].starts_with("3.14"),
+        "pi should start with 3.14: {:?}",
+        output[0]
+    );
+    assert!(
+        output[1].starts_with("6.28"),
+        "tau should start with 6.28: {:?}",
+        output[1]
+    );
+}
+
+// =============================================================================
+// Phase 1: Blueprint.Setup() mandatory validation
+// =============================================================================
+
+#[test]
+fn test_missing_setup_error() {
+    let src = r#"
+func Main(): [
+    output("No setup")
+]
+"#;
+    let res = run(src);
+    assert!(res.is_err(), "Should have failed without Blueprint.Setup()");
+    let msg = res.unwrap_err().to_string();
+    assert!(
+        msg.contains("Setup") || msg.contains("setup") || msg.contains("mandatory"),
+        "Error should mention missing setup: {}",
+        msg
+    );
+}
+
+#[test]
+fn test_duplicate_setup_error() {
+    let src = r#"
+@blueprint import Blueprint
+Blueprint.Setup("App", true)
+Blueprint.Setup("App2", true)
+
+func Main(): [
+    output("Hello")
+]
+"#;
+    let res = run(src);
+    assert!(
+        res.is_err(),
+        "Should have failed with duplicate Blueprint.Setup()"
+    );
+    let msg = res.unwrap_err().to_string();
+    assert!(
+        msg.contains("Duplicate") || msg.contains("duplicate") || msg.contains("Setup"),
+        "Error should mention duplicate setup: {}",
+        msg
+    );
+}
+
+// =============================================================================
+// Phase 4: Extended Standard Library
+// =============================================================================
+
+#[test]
+fn test_stdlib_string_functions() {
+    let src = r#"
+@blueprint import Blueprint
+Blueprint.Setup("Stdlib Str Test", true)
+
+func Main(): [
+    def s = "Hello, Blueprint!"
+    output(str_contains(s, "Blueprint"))
+    output(str_starts_with(s, "Hello"))
+    output(str_ends_with(s, "!"))
+    output(str_to_int("42"))
+]
+"#;
+    let (_, output) = run(src).expect("String stdlib test failed");
+    assert_eq!(output[0], "true");
+    assert_eq!(output[1], "true");
+    assert_eq!(output[2], "true");
+    assert_eq!(output[3], "42");
+}
+
+#[test]
+fn test_stdlib_math_float() {
+    let src = r#"
+@blueprint import Blueprint
+Blueprint.Setup("Math Float Test", true)
+
+func Main(): [
+    def s = math_sqrt(9.0)
+    def f = math_floor(3.7)
+    def c = math_ceil(3.2)
+    output(s)
+    output(f)
+    output(c)
+]
+"#;
+    let (_, output) = run(src).expect("Math float test failed");
+    assert!(
+        output[0].starts_with("3"),
+        "sqrt(9) should be 3: {:?}",
+        output[0]
+    );
+    assert!(
+        output[1].starts_with("3"),
+        "floor(3.7) should be 3: {:?}",
+        output[1]
+    );
+    assert!(
+        output[2].starts_with("4"),
+        "ceil(3.2) should be 4: {:?}",
+        output[2]
+    );
+}
+
+#[test]
+fn test_stdlib_file_io() {
+    use std::fs;
+    let tmp =
+        std::env::temp_dir().join(format!("bl_file_test_{}.txt", std::process::id()));
+    let path = tmp.to_string_lossy().replace('\\', "/");
+
+    let src = format!(
+        r#"
+@blueprint import Blueprint
+Blueprint.Setup("File IO Test", true)
+
+func Main(): [
+    def ok = file_write("{path}", "Hello from Blueprint!")
+    def content = file_read("{path}")
+    def exists = file_exists("{path}")
+    output(ok)
+    output(exists)
+    output(str_contains(content, "Blueprint"))
+]
+"#,
+        path = path
+    );
+
+    let (_, output) = run(&src).expect("File IO test failed");
+    assert_eq!(output[0], "true");
+    assert_eq!(output[1], "true");
+    assert_eq!(output[2], "true");
+
+    let _ = fs::remove_file(&tmp);
+}
+
+#[test]
+fn test_stdlib_env_and_time() {
+    let src = r#"
+@blueprint import Blueprint
+Blueprint.Setup("Env Time Test", true)
+
+func Main(): [
+    def ok = env_set("BL_TEST_VAR", "blueprint42")
+    def val = env_get("BL_TEST_VAR")
+    def t = time_now()
+    output(ok)
+    output(str_contains(val, "42"))
+    output(t > 0)
+]
+"#;
+    let (_, output) = run(src).expect("Env/time test failed");
+    assert_eq!(output[0], "true");
+    assert_eq!(output[1], "true");
+    assert_eq!(output[2], "true");
+}
+
+// =============================================================================
+// Phase 3: C FFI — native build with C.Include / C.Extern
+// =============================================================================
+
+#[test]
+fn test_c_ffi_native_build() {
+    use blueprint_compiler::build_executable;
+    use std::process::Command;
+
+    let src = r#"
+@blueprint import Blueprint
+@blueprint import C
+Blueprint.Setup("C FFI Test", true)
+
+C.Include("math.h")
+C.Extern("double sqrt(double x)")
+
+func Main(): [
+    def result = sqrt(16.0)
+    output(result)
+]
+"#;
+
+    let out_exe =
+        std::env::temp_dir().join(format!("bl_ffi_test_{}.exe", std::process::id()));
+    let res = build_executable(src, &out_exe);
+    assert!(res.is_ok(), "C FFI GCC compilation failed: {:?}", res.err());
+
+    let run_res = Command::new(&out_exe)
+        .output()
+        .expect("Failed to execute C FFI binary");
+    let stdout = String::from_utf8_lossy(&run_res.stdout);
+    assert!(stdout.contains("4"), "sqrt(16) should output 4: {}", stdout);
+
+    let _ = std::fs::remove_file(out_exe);
+}

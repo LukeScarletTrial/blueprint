@@ -129,6 +129,168 @@ impl<'a> SemanticAnalyzer<'a> {
             },
         );
 
+        // =====================================================================
+        // Phase 4: Extended Standard Library
+        // =====================================================================
+
+        // math_sqrt / math_floor / math_ceil / math_round
+        for name in &["math_sqrt", "math_floor", "math_ceil", "math_round"] {
+            functions.insert(
+                name.to_string(),
+                FunctionSignature {
+                    name: name.to_string(),
+                    param_names: vec!["x".to_string()],
+                    param_types: vec![None], // accepts numeric
+                    return_type: Some(Type::F64),
+                    span: Span::new(0, 0),
+                },
+            );
+        }
+
+        // file_read(path: string) -> string
+        functions.insert("file_read".to_string(), FunctionSignature {
+            name: "file_read".to_string(),
+            param_names: vec!["path".to_string()],
+            param_types: vec![Some(Type::String)],
+            return_type: Some(Type::String),
+            span: Span::new(0, 0),
+        });
+
+        // file_write(path: string, data: string) -> bool
+        functions.insert("file_write".to_string(), FunctionSignature {
+            name: "file_write".to_string(),
+            param_names: vec!["path".to_string(), "data".to_string()],
+            param_types: vec![Some(Type::String), Some(Type::String)],
+            return_type: Some(Type::Bool),
+            span: Span::new(0, 0),
+        });
+
+        // file_exists(path: string) -> bool
+        functions.insert("file_exists".to_string(), FunctionSignature {
+            name: "file_exists".to_string(),
+            param_names: vec!["path".to_string()],
+            param_types: vec![Some(Type::String)],
+            return_type: Some(Type::Bool),
+            span: Span::new(0, 0),
+        });
+
+        // path_join(a, b) -> string
+        functions.insert("path_join".to_string(), FunctionSignature {
+            name: "path_join".to_string(),
+            param_names: vec!["a".to_string(), "b".to_string()],
+            param_types: vec![Some(Type::String), Some(Type::String)],
+            return_type: Some(Type::String),
+            span: Span::new(0, 0),
+        });
+
+        // path_ext(p) -> string
+        functions.insert("path_ext".to_string(), FunctionSignature {
+            name: "path_ext".to_string(),
+            param_names: vec!["p".to_string()],
+            param_types: vec![Some(Type::String)],
+            return_type: Some(Type::String),
+            span: Span::new(0, 0),
+        });
+
+        // path_filename(p) -> string
+        functions.insert("path_filename".to_string(), FunctionSignature {
+            name: "path_filename".to_string(),
+            param_names: vec!["p".to_string()],
+            param_types: vec![Some(Type::String)],
+            return_type: Some(Type::String),
+            span: Span::new(0, 0),
+        });
+
+        // env_get(key) -> string
+        functions.insert("env_get".to_string(), FunctionSignature {
+            name: "env_get".to_string(),
+            param_names: vec!["key".to_string()],
+            param_types: vec![Some(Type::String)],
+            return_type: Some(Type::String),
+            span: Span::new(0, 0),
+        });
+
+        // env_set(key, val) -> bool
+        functions.insert("env_set".to_string(), FunctionSignature {
+            name: "env_set".to_string(),
+            param_names: vec!["key".to_string(), "val".to_string()],
+            param_types: vec![Some(Type::String), Some(Type::String)],
+            return_type: Some(Type::Bool),
+            span: Span::new(0, 0),
+        });
+
+        // process_exit(code)
+        functions.insert("process_exit".to_string(), FunctionSignature {
+            name: "process_exit".to_string(),
+            param_names: vec!["code".to_string()],
+            param_types: vec![Some(Type::Int)],
+            return_type: Some(Type::Void),
+            span: Span::new(0, 0),
+        });
+
+        // time_now() -> int
+        functions.insert("time_now".to_string(), FunctionSignature {
+            name: "time_now".to_string(),
+            param_names: vec![],
+            param_types: vec![],
+            return_type: Some(Type::Int),
+            span: Span::new(0, 0),
+        });
+
+        // time_sleep(ms)
+        functions.insert("time_sleep".to_string(), FunctionSignature {
+            name: "time_sleep".to_string(),
+            param_names: vec!["ms".to_string()],
+            param_types: vec![Some(Type::Int)],
+            return_type: Some(Type::Void),
+            span: Span::new(0, 0),
+        });
+
+        // str_to_int(s) -> int
+        functions.insert("str_to_int".to_string(), FunctionSignature {
+            name: "str_to_int".to_string(),
+            param_names: vec!["s".to_string()],
+            param_types: vec![Some(Type::String)],
+            return_type: Some(Type::Int),
+            span: Span::new(0, 0),
+        });
+
+        // str_to_float(s) -> f64
+        functions.insert("str_to_float".to_string(), FunctionSignature {
+            name: "str_to_float".to_string(),
+            param_names: vec!["s".to_string()],
+            param_types: vec![Some(Type::String)],
+            return_type: Some(Type::F64),
+            span: Span::new(0, 0),
+        });
+
+        // str_contains(haystack, needle) -> bool
+        functions.insert("str_contains".to_string(), FunctionSignature {
+            name: "str_contains".to_string(),
+            param_names: vec!["haystack".to_string(), "needle".to_string()],
+            param_types: vec![Some(Type::String), Some(Type::String)],
+            return_type: Some(Type::Bool),
+            span: Span::new(0, 0),
+        });
+
+        // str_starts_with(s, prefix) -> bool
+        functions.insert("str_starts_with".to_string(), FunctionSignature {
+            name: "str_starts_with".to_string(),
+            param_names: vec!["s".to_string(), "prefix".to_string()],
+            param_types: vec![Some(Type::String), Some(Type::String)],
+            return_type: Some(Type::Bool),
+            span: Span::new(0, 0),
+        });
+
+        // str_ends_with(s, suffix) -> bool
+        functions.insert("str_ends_with".to_string(), FunctionSignature {
+            name: "str_ends_with".to_string(),
+            param_names: vec!["s".to_string(), "suffix".to_string()],
+            param_types: vec![Some(Type::String), Some(Type::String)],
+            return_type: Some(Type::Bool),
+            span: Span::new(0, 0),
+        });
+
         Self {
             source,
             structs: HashMap::new(),
@@ -371,6 +533,9 @@ impl<'a> SemanticAnalyzer<'a> {
             if ann.name == "blueprint" {
                 if ann.target == "AppToolkit" {
                     self.register_app_toolkit();
+                } else if ann.target == "C" {
+                    // Phase 3: C FFI module — allow C.Call() as dynamic
+                    self.imported_modules.insert("C".to_string());
                 } else if ann.target.starts_with("modules/") {
                     let mod_name = ann.target.trim_start_matches("modules/").to_string();
                     let simple_name = mod_name
@@ -381,6 +546,55 @@ impl<'a> SemanticAnalyzer<'a> {
                         .to_string();
                     self.imported_modules.insert(mod_name);
                     self.imported_modules.insert(simple_name);
+                }
+            }
+        }
+
+        // Phase 3: Register C.Extern declarations as callable functions with Any return type
+        for extern_decl in &program.c_externs {
+            // Parse "return_type func_name(params...)" roughly
+            let sig = extern_decl.signature.trim();
+            // Find the first '(' to determine function name
+            if let Some(paren_pos) = sig.find('(') {
+                let before = sig[..paren_pos].trim();
+                // Last word before '(' is the function name
+                if let Some(name) = before.split_whitespace().last() {
+                    let name = name.to_string();
+                    self.functions.insert(name.clone(), FunctionSignature {
+                        name,
+                        param_names: vec![],
+                        param_types: vec![],  // Accept any args
+                        return_type: Some(Type::Custom("Any".into())),
+                        span: extern_decl.span,
+                    });
+                }
+            }
+        }
+
+        // Pass 0.5: Blueprint.Setup() validation
+        // Mandatory for executable programs (programs with func Main())
+        let has_main = program.items.iter().any(|item| matches!(item, Item::Func(f) if f.name == "Main"));
+        let setup_count = program.items.iter().filter(|item| matches!(item, Item::Setup(_))).count();
+
+        if has_main {
+            if setup_count == 0 {
+                return self.error(
+                    "Missing mandatory 'Blueprint.Setup(\"AppName\", true)' declaration. Executable Blueprint programs with Main() require exactly one setup declaration.",
+                    program.span,
+                );
+            } else if setup_count > 1 {
+                // Find second setup span
+                let mut seen = false;
+                for item in &program.items {
+                    if let Item::Setup(s) = item {
+                        if seen {
+                            return self.error(
+                                "Duplicate 'Blueprint.Setup()' call. A Blueprint application can only have one setup declaration.",
+                                s.span,
+                            );
+                        }
+                        seen = true;
+                    }
                 }
             }
         }
@@ -554,6 +768,7 @@ impl<'a> SemanticAnalyzer<'a> {
         let span = spanned_expr.span;
         match &spanned_expr.expr {
             Expr::Int(_) => Ok(Type::Int),
+            Expr::Float(_) => Ok(Type::F64),
             Expr::Bool(_) => Ok(Type::Bool),
             Expr::String(_) => Ok(Type::String),
             Expr::Ident(name) => {
@@ -569,10 +784,10 @@ impl<'a> SemanticAnalyzer<'a> {
             }
             Expr::UnaryOp(UnOp::Neg, inner) => {
                 let ty = self.analyze_expr(inner)?;
-                if ty != Type::Int && ty != Type::Custom("Any".into()) {
-                    return self.error(format!("Cannot negate non-integer type {}", ty), span);
+                if !ty.is_numeric() && ty != Type::Custom("Any".into()) {
+                    return self.error(format!("Cannot negate non-numeric type {}", ty), span);
                 }
-                Ok(Type::Int)
+                Ok(ty)
             }
             Expr::UnaryOp(UnOp::Not, inner) => {
                 let ty = self.analyze_expr(inner)?;
@@ -590,8 +805,21 @@ impl<'a> SemanticAnalyzer<'a> {
 
                 match op {
                     BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div => {
-                        if (lhs_ty == Type::Int || lhs_ty == Type::Custom("Any".into()))
-                            && (rhs_ty == Type::Int || rhs_ty == Type::Custom("Any".into()))
+                        if lhs_ty.is_numeric() && rhs_ty.is_numeric() {
+                            if lhs_ty.is_float() || rhs_ty.is_float() {
+                                if lhs_ty == Type::F32 && rhs_ty == Type::F32 {
+                                    Ok(Type::F32)
+                                } else {
+                                    Ok(Type::F64)
+                                }
+                            } else if lhs_ty == rhs_ty {
+                                Ok(lhs_ty)
+                            } else {
+                                Ok(Type::Int)
+                            }
+                        } else if (lhs_ty == Type::Custom("Any".into()) && rhs_ty.is_numeric())
+                            || (rhs_ty == Type::Custom("Any".into()) && lhs_ty.is_numeric())
+                            || (lhs_ty == Type::Custom("Any".into()) && rhs_ty == Type::Custom("Any".into()))
                         {
                             Ok(Type::Int)
                         } else if *op == BinOp::Add
@@ -610,14 +838,14 @@ impl<'a> SemanticAnalyzer<'a> {
                         }
                     }
                     BinOp::Gt | BinOp::Lt | BinOp::Gte | BinOp::Lte => {
-                        if (lhs_ty == Type::Int || lhs_ty == Type::Custom("Any".into()))
-                            && (rhs_ty == Type::Int || rhs_ty == Type::Custom("Any".into()))
+                        if (lhs_ty.is_numeric() || lhs_ty == Type::Custom("Any".into()))
+                            && (rhs_ty.is_numeric() || rhs_ty == Type::Custom("Any".into()))
                         {
                             Ok(Type::Bool)
                         } else {
                             self.error(
                                 format!(
-                                    "Comparison {:?} requires integers, got {} and {}",
+                                    "Comparison {:?} requires numeric operands, got {} and {}",
                                     op, lhs_ty, rhs_ty
                                 ),
                                 span,
@@ -625,8 +853,9 @@ impl<'a> SemanticAnalyzer<'a> {
                         }
                     }
                     BinOp::EqEq | BinOp::Neq => {
-                        // Can check equality between matching types or Any
+                        // Can check equality between matching types, compatible numeric types, or Any
                         if lhs_ty == rhs_ty
+                            || (lhs_ty.is_numeric() && rhs_ty.is_numeric())
                             || lhs_ty == Type::Custom("Any".into())
                             || rhs_ty == Type::Custom("Any".into())
                         {
@@ -666,7 +895,7 @@ impl<'a> SemanticAnalyzer<'a> {
                     }
                 };
 
-                if sig.name != "output" && sig.param_names.len() != args.len() {
+                if sig.name != "output" && !sig.param_names.is_empty() && sig.param_names.len() != args.len() {
                     return self.error(
                         format!(
                             "Function '{}' expects {} arguments, got {}",
