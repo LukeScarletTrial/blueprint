@@ -2,7 +2,7 @@
   "name": "blueprint-lang",
   "displayName": "Blueprint Language Support",
   "description": "Syntax highlighting, file icons, and snippets for Blueprint (.bl), Blueprint Setup (.bls), and Blueprint Modules (.blm)",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "icon": "logo.png",
   "publisher": "LukeScarletTrial",
   "main": "./extension.js",
